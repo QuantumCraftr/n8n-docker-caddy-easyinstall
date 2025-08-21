@@ -40,8 +40,8 @@
 ### Installation en 1 commande
 
 ```bash
-git clone https://github.com/QuantumCraftr/n8n-docker-caddy.git
-cd n8n-docker-caddy
+git clone https://github.com/QuantumCraftr/n8n-docker-caddy-easyinstall
+cd n8n-docker-caddy-easyinstall
 cd scripts
 chmod +x setup.sh
 ./setup.sh
