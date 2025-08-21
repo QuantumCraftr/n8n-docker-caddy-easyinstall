@@ -1,0 +1,54 @@
+services:
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - ${DATA_FOLDER}/caddy_config:/config
+      - ${DATA_FOLDER}/caddy_config/Caddyfile:/etc/caddy/Caddyfile
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    restart: always
+    ports:
+      - 5678:5678
+    environment:
+      - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      # Configuration sécurisée
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-true}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      # Optimisations
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_EXECUTIONS_DATA_PRUNE=true
+      - N8N_EXECUTIONS_DATA_MAX_AGE=168
+      - N8N_SECURE_COOKIE=true
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ${DATA_FOLDER}/local_files:/files
+
+  flowise:
+    image: flowiseai/flowise
+    restart: unless-stopped
+    environment:
+      - FLOWISE_USERNAME=${FLOWISE_USERNAME}
+      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
+    volumes:
+      - flowise_data:/root/.flowise
+
+volumes:
+  caddy_data:
+    external: true
+  n8n_data:
+    external: true
+  flowise_data:
+    external: true

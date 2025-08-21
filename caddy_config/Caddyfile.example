@@ -1,0 +1,27 @@
+automation.yourdmain.com {
+    reverse_proxy n8n:5678 {
+      flush_interval -1
+    }
+}
+flowise.yourdomain.com {
+    reverse_proxy flowise:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+monitoring.yourdomain.com {
+    reverse_proxy grafana:3000
+}
+portainer.yourdomain.com {
+    reverse_proxy portainer:9443 {
+        transport http {
+            tls_insecure_skip_verify
+        }
+    }
+}
+
+uptime.yourdomain.com {
+    reverse_proxy uptime-kuma:3001
+}

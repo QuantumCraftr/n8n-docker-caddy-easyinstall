@@ -1,0 +1,150 @@
+services:
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - ${DATA_FOLDER}/caddy_config:/config
+      - ${DATA_FOLDER}/caddy_config/Caddyfile:/etc/caddy/Caddyfile
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    restart: always
+    ports:
+      - 5678:5678
+    environment:
+      - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      # Configuration sécurisée
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-true}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      # Optimisations
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_EXECUTIONS_DATA_PRUNE=true
+      - N8N_EXECUTIONS_DATA_MAX_AGE=168
+      - N8N_SECURE_COOKIE=true
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ${DATA_FOLDER}/local_files:/files
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  flowise:
+    image: flowiseai/flowise
+    restart: unless-stopped
+    environment:
+      - FLOWISE_USERNAME=${FLOWISE_USERNAME}
+      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
+    volumes:
+      - flowise_data:/root/.flowise
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    command: -H unix:///var/run/docker.sock
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"  # Ne pas auto-update Portainer
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_SCHEDULE=0 0 4 * * 0  # Dimanche 4h du matin
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_STOPPED=true
+      - WATCHTOWER_LABEL_ENABLE=true  # Utiliser les labels pour contrôler les MàJ
+      - WATCHTOWER_NOTIFICATIONS=${WATCHTOWER_NOTIFICATIONS:-}
+      - WATCHTOWER_NOTIFICATION_EMAIL_FROM=${SSL_EMAIL:-}
+      - WATCHTOWER_NOTIFICATION_EMAIL_TO=${SSL_EMAIL:-}
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER=${SMTP_SERVER:-}
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT=${SMTP_PORT:-587}
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER=${SMTP_USER:-}
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=${SMTP_PASSWORD:-}
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"  # Ne pas s'auto-update
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    restart: unless-stopped
+    volumes:
+      - uptime_data:/app/data
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+volumes:
+  caddy_data:
+    external: true
+  n8n_data:
+    external: true
+  flowise_data:
+    external: true
+  grafana_data:
+  prometheus_data:
+  portainer_data:
+  uptime_data:

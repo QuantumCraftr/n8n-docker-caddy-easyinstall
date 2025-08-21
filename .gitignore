@@ -1,0 +1,31 @@
+# Secrets et configuration locale
+.env
+*.env.local
+*.env.production
+
+# Données Caddy (générées automatiquement)
+caddy_config/Caddyfile
+!caddy_config/Caddyfile.example
+caddy_config/caddy/
+
+# Fichiers générés par les scripts
+credentials.txt
+
+# Logs et données
+logs/
+data/
+*.log
+
+# Backups
+backups/
+*.tar.gz
+*.zip
+
+# OS et éditeurs
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+caddy_config/Caddyfile
