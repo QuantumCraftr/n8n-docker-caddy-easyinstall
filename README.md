@@ -5,9 +5,10 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
 [![n8n](https://img.shields.io/badge/n8n-Latest-orange)](https://n8n.io)
 [![SSL](https://img.shields.io/badge/SSL-Auto--Generated-green)](https://letsencrypt.org)
+[![Monitoring](https://img.shields.io/badge/Monitoring-Grafana-red)](https://grafana.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-This is a community fork of the original n8n-docker-caddy project, enhanced with interactive installation scripts and multiple deployment options for VPS providers like Hetzner Cloud and DigitalOcean.
+This is a community fork of the original n8n-docker-caddy project, enhanced with interactive installation scripts, advanced monitoring capabilities, and multiple deployment options for VPS providers like Hetzner Cloud and DigitalOcean.
 
 ## ✨ What's New
 
@@ -17,9 +18,15 @@ This is a community fork of the original n8n-docker-caddy project, enhanced with
 - SSL certificate automation
 - Firewall configuration
 
+📊 **Advanced Monitoring Suite**
+- Professional Grafana dashboards
+- Node Exporter for system metrics
+- Docker container monitoring
+- Automatic dashboard provisioning
+
 🔧 **Multiple Deployment Options**
 - **Basic**: n8n + Flowise + Caddy
-- **Monitoring**: + Prometheus + Grafana
+- **Monitoring**: + Prometheus + Grafana + Node Exporter
 - **Pro**: + Portainer + Watchtower + Uptime Kuma
 
 🛡️ **Enhanced Security**
@@ -39,11 +46,26 @@ chmod +x setup.sh
 ```
 
 The setup script will guide you through:
-- Choosing your installation type
+- Choosing your installation type (Basic/Monitoring/Pro)
 - Configuring your domain and subdomains
 - Setting up SSL certificates
 - Generating secure passwords
-- Creating Docker volumes
+- **NEW**: Optional advanced monitoring setup with beautiful dashboards
+
+## 📊 Monitoring Features
+
+The **Monitoring** and **Pro** installation levels now include:
+
+- 🎨 **Beautiful Grafana Dashboards** - Pre-configured and auto-loaded
+- 🖥️ **System Metrics** - CPU, memory, disk, network via Node Exporter
+- 🐳 **Container Monitoring** - Docker stats and health
+- 📈 **Real-time Alerts** - Monitor your n8n workflows and system health
+- 📊 **Professional Charts** - Production-ready visualization
+
+### Sample Dashboards Included:
+- **n8n & Docker Dashboard** - Container resources and health
+- **System Overview** - Server performance metrics  
+- **Ready-to-import IDs**: Node Exporter (1860), Docker (10619)
 
 ## 📖 Documentation
 
@@ -54,6 +76,7 @@ The setup script will guide you through:
 
 - **Zero-config SSL** with Let's Encrypt via Caddy
 - **Multiple services** in one deployment
+- **Professional monitoring** with Grafana + Prometheus
 - **Backup & update scripts** included
 - **Production-ready** configurations
 - **VPS optimized** for cloud providers
@@ -64,28 +87,31 @@ The setup script will guide you through:
 - Docker & Docker Compose
 - Domain name pointing to your server
 - Ports 80 and 443 open
+- **Recommended**: 2+ GB RAM for monitoring features
 
 ## 🚀 Services Included
 
-| Service | Purpose | Installation Level |
-|---------|---------|-------------------|
-| **n8n** | Workflow automation | All |
-| **Flowise** | AI chatbots | All |
-| **Caddy** | Reverse proxy + SSL | All |
-| **Prometheus** | Metrics collection | Monitoring + Pro |
-| **Grafana** | Monitoring dashboards | Monitoring + Pro |
-| **Portainer** | Docker management | Pro only |
-| **Watchtower** | Auto updates | Pro only |
-| **Uptime Kuma** | Service monitoring | Pro only |
+| Service | Purpose | Installation Level | Dashboard |
+|---------|---------|-------------------|-----------|
+| **n8n** | Workflow automation | All | ✅ |
+| **Flowise** | AI chatbots | All | ✅ |
+| **Caddy** | Reverse proxy + SSL | All | - |
+| **Prometheus** | Metrics collection | Monitoring + Pro | ✅ |
+| **Grafana** | Monitoring dashboards | Monitoring + Pro | 📊 |
+| **Node Exporter** | System metrics | Monitoring + Pro | ✅ |
+| **cAdvisor** | Container metrics | Monitoring + Pro | ✅ |
+| **Portainer** | Docker management | Pro only | 🐳 |
+| **Watchtower** | Auto updates | Pro only | - |
+| **Uptime Kuma** | Service monitoring | Pro only | 📈 |
 
 ## 📋 Quick Commands
 
 ```bash
-# Start services
-docker compose up -d
+# Start services (use your specific compose file)
+docker compose -f docker-compose-pro.yml up -d
 
 # View logs
-docker compose logs -f
+docker compose -f docker-compose-pro.yml logs -f
 
 # Update services
 cd scripts && ./update.sh
@@ -93,17 +119,53 @@ cd scripts && ./update.sh
 # Backup data
 cd scripts && ./backup.sh
 
+# Setup advanced monitoring (optional)
+cd scripts && ./grafana_setup.sh
+
 # Stop services
-docker compose down
+docker compose -f docker-compose-pro.yml down
+```
+
+## 🎯 Access Your Services
+
+After installation, access your services at:
+- **n8n**: `https://automation.yourdomain.com`
+- **Flowise**: `https://flowise.yourdomain.com`
+- **Grafana**: `https://monitoring.yourdomain.com` (Monitoring/Pro)
+- **Portainer**: `https://portainer.yourdomain.com` (Pro only)
+- **Uptime Kuma**: `https://uptime.yourdomain.com` (Pro only)
+
+Login credentials are saved in `credentials.txt` after setup.
+
+## 🔧 Advanced Configuration
+
+### Manual Grafana Dashboard Import
+If you prefer manual setup, import these dashboard IDs:
+- **Node Exporter Full**: `1860` (recommended)
+- **Docker Container & Host**: `10619`
+- **cAdvisor**: `14282`
+
+### Custom Monitoring Setup
+Run the Grafana setup script separately:
+```bash
+cd scripts
+./grafana_setup.sh
 ```
 
 ## 🤝 Contributing
 
-This is a community project! Feel free to:
-- Report issues
-- Suggest improvements
-- Submit pull requests
-- Share your workflows
+This is a community project! We welcome:
+- 🐛 Bug reports and fixes
+- ✨ New feature suggestions
+- 📚 Documentation improvements
+- 🎨 Dashboard enhancements
+- 🔧 Infrastructure improvements
+
+## 🆘 Support
+
+- **Issues**: [GitHub Issues](https://github.com/QuantumCraftr/n8n-docker-caddy-easyinstall/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/QuantumCraftr/n8n-docker-caddy-easyinstall/discussions)
+- **n8n Community**: [n8n Community Forum](https://community.n8n.io)
 
 ## 📄 License
 
@@ -115,9 +177,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [n8n.io](https://n8n.io) for the amazing automation platform
 - [Caddy](https://caddyserver.com) for the fantastic reverse proxy
 - [Flowise](https://flowiseai.com) for AI capabilities
+- [Grafana](https://grafana.com) & [Prometheus](https://prometheus.io) for monitoring
 
 ---
 
 **⭐ If this project helps you, please give it a star!**
 
-Made with ❤️ for the n8n community
+Made with ❤️ for the n8n community | Enhanced with 📊 professional monitoring

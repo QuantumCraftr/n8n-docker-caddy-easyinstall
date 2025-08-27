@@ -89,14 +89,21 @@ A     | uptime         | YOUR_SERVER_IP
 ### Starting services
 
 ```bash
-# Start all services
-docker compose up -d
+# Start according to your installation
+# Basic installation
+docker compose -f docker-compose-basic.yml up -d
+
+# Installation with monitoring
+docker compose -f docker-compose-monitoring.yml up -d
+
+# Pro installation
+docker compose -f docker-compose-pro.yml up -d
 
 # View service status
-docker compose ps
+docker compose -f docker-compose-[level].yml ps
 
 # Follow logs in real-time
-docker compose logs -f
+docker compose -f docker-compose-[level].yml logs -f
 ```
 
 ### Accessing services
@@ -114,21 +121,24 @@ Credentials are in the `credentials.txt` file generated during installation.
 ### Useful commands
 
 ```bash
-# Restart a specific service
-docker compose restart n8n
+# Restart a specific service (replace [level] with basic/monitoring/pro)
+docker compose -f docker-compose-[level].yml restart n8n
 
 # View logs for a service
-docker compose logs n8n
+docker compose -f docker-compose-[level].yml logs n8n
 
 # Update images
-docker compose pull
-docker compose up -d
+docker compose -f docker-compose-[level].yml pull
+docker compose -f docker-compose-[level].yml up -d
 
 # Backup data
 cd scripts && ./backup.sh
 
+# Update with script
+cd scripts && ./update.sh
+
 # Stop all services
-docker compose down
+docker compose -f docker-compose-[level].yml down
 ```
 
 ## 🔧 Advanced configuration
@@ -184,7 +194,7 @@ cd scripts && ./backup.sh
 
 # Schedule automatic backups
 crontab -e
-# Add: 0 3 * * * /path/to/scripts/backup.sh
+# Add: 0 3 * * * /path/to/n8n-docker-caddy-easyinstall/scripts/backup.sh
 ```
 
 ### Updates
@@ -203,8 +213,8 @@ cd scripts && ./update.sh
 
 **SSL not working**
 ```bash
-# Check Caddy logs
-docker compose logs caddy
+# Check Caddy logs (replace [level] with your installation)
+docker compose -f docker-compose-[level].yml logs caddy
 
 # Verify that DNS points to your server
 nslookup your-domain.com
@@ -212,11 +222,11 @@ nslookup your-domain.com
 
 **Service not starting**
 ```bash
-# See errors
-docker compose logs [service-name]
+# See errors (replace [level] with your installation)
+docker compose -f docker-compose-[level].yml logs [service-name]
 
 # Restart the service
-docker compose restart [service-name]
+docker compose -f docker-compose-[level].yml restart [service-name]
 ```
 
 **Disk space full**
@@ -232,11 +242,11 @@ df -h
 ### Logs and diagnostics
 
 ```bash
-# Complete logs
-docker compose logs -f --tail=100
+# Complete logs (replace [level] with your installation)
+docker compose -f docker-compose-[level].yml logs -f --tail=100
 
 # Container status
-docker compose ps
+docker compose -f docker-compose-[level].yml ps
 
 # Resource usage
 docker stats --no-stream

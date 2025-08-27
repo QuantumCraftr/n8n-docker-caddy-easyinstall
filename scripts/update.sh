@@ -1,144 +1,144 @@
 #!/bin/bash
-# 🔄 Script de mise à jour n8n-docker-caddy
+# 🔄 n8n-docker-caddy Update Script
 
 set -e
 
-# Couleurs
+# Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Chemin vers le répertoire parent (racine du projet)
+# Path to parent directory (project root)
 PROJECT_ROOT=".."
 
-echo -e "${BLUE}🔄 Mise à jour n8n-docker-caddy${NC}"
+echo -e "${BLUE}🔄 n8n-docker-caddy Update${NC}"
 echo ""
 
-# Fonction pour afficher les versions actuelles
+# Function to display current versions
 show_current_versions() {
-    echo -e "${YELLOW}📋 Versions actuelles:${NC}"
+    echo -e "${YELLOW}📋 Current versions:${NC}"
     
     # n8n
-    if docker compose ps n8n | grep -q "Up"; then
+    if docker compose ps n8n 2>/dev/null | grep -q "Up"; then
         N8N_VERSION=$(docker compose exec -T n8n n8n --version 2>/dev/null || echo "N/A")
         echo -e "  n8n: ${GREEN}$N8N_VERSION${NC}"
     fi
     
     # Caddy
-    if docker compose ps caddy | grep -q "Up"; then
+    if docker compose ps caddy 2>/dev/null | grep -q "Up"; then
         CADDY_VERSION=$(docker compose exec -T caddy caddy version 2>/dev/null || echo "N/A")
         echo -e "  Caddy: ${GREEN}$CADDY_VERSION${NC}"
     fi
     
     # Flowise
-    if docker compose ps flowise | grep -q "Up"; then
+    if docker compose ps flowise 2>/dev/null | grep -q "Up"; then
         echo -e "  Flowise: ${GREEN}$(docker compose images flowise --format "{{.Tag}}")${NC}"
     fi
     
     echo ""
 }
 
-# Fonction de mise à jour avec choix
+# Update function with choice
 update_choice() {
-    echo -e "${YELLOW}🎯 Type de mise à jour:${NC}"
-    echo "1) 🚀 Rapide (n8n seulement)"
-    echo "2) 📦 Complète (tous les services)"
-    echo "3) 🔧 Avec recreation des conteneurs"
-    echo "4) ❌ Annuler"
+    echo -e "${YELLOW}🎯 Update type:${NC}"
+    echo "1) 🚀 Quick (n8n only)"
+    echo "2) 📦 Complete (all services)"
+    echo "3) 🔧 With container recreation"
+    echo "4) ❌ Cancel"
     echo ""
-    read -p "Votre choix [1-4]: " UPDATE_TYPE
+    read -p "Your choice [1-4]: " UPDATE_TYPE
     
     case $UPDATE_TYPE in
         1) update_n8n_only ;;
         2) update_all ;;
         3) update_recreate ;;
-        4) echo -e "${YELLOW}⏹️ Mise à jour annulée${NC}"; exit 0 ;;
-        *) echo -e "${RED}❌ Choix invalide${NC}"; exit 1 ;;
+        4) echo -e "${YELLOW}⏹️ Update cancelled${NC}"; exit 0 ;;
+        *) echo -e "${RED}❌ Invalid choice${NC}"; exit 1 ;;
     esac
 }
 
-# Mise à jour n8n seulement
+# Update n8n only
 update_n8n_only() {
-    echo -e "${BLUE}🚀 Mise à jour rapide de n8n...${NC}"
+    echo -e "${BLUE}🚀 Quick n8n update...${NC}"
     
     docker compose pull n8n
     docker compose up -d n8n
     
-    echo -e "${GREEN}✅ n8n mis à jour !${NC}"
+    echo -e "${GREEN}✅ n8n updated!${NC}"
 }
 
-# Mise à jour de tous les services
+# Update all services
 update_all() {
-    echo -e "${BLUE}📦 Mise à jour complète...${NC}"
+    echo -e "${BLUE}📦 Complete update...${NC}"
     
-    # Télécharger les nouvelles images
-    echo -e "${YELLOW}⬇️ Téléchargement des nouvelles images...${NC}"
+    # Download new images
+    echo -e "${YELLOW}⬇️ Downloading new images...${NC}"
     docker compose pull
     
-    # Redémarrer les services
-    echo -e "${YELLOW}🔄 Redémarrage des services...${NC}"
+    # Restart services
+    echo -e "${YELLOW}🔄 Restarting services...${NC}"
     docker compose up -d
     
-    echo -e "${GREEN}✅ Tous les services mis à jour !${NC}"
+    echo -e "${GREEN}✅ All services updated!${NC}"
 }
 
-# Mise à jour avec recréation
+# Update with recreation
 update_recreate() {
-    echo -e "${BLUE}🔧 Mise à jour avec recréation...${NC}"
-    echo -e "${RED}⚠️ Cette opération va recréer tous les conteneurs${NC}"
+    echo -e "${BLUE}🔧 Update with recreation...${NC}"
+    echo -e "${RED}⚠️ This operation will recreate all containers${NC}"
     
-    read -p "Continuer? [y/N]: " CONFIRM
+    read -p "Continue? [y/N]: " CONFIRM
     if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}⏹️ Opération annulée${NC}"
+        echo -e "${YELLOW}⏹️ Operation cancelled${NC}"
         exit 0
     fi
     
-    # Télécharger les nouvelles images
-    echo -e "${YELLOW}⬇️ Téléchargement des nouvelles images...${NC}"
+    # Download new images
+    echo -e "${YELLOW}⬇️ Downloading new images...${NC}"
     docker compose pull
     
-    # Arrêter les services
-    echo -e "${YELLOW}⏹️ Arrêt des services...${NC}"
+    # Stop services
+    echo -e "${YELLOW}⏹️ Stopping services...${NC}"
     docker compose down
     
-    # Redémarrer avec recréation
-    echo -e "${YELLOW}🚀 Recréation des conteneurs...${NC}"
+    # Restart with recreation
+    echo -e "${YELLOW}🚀 Recreating containers...${NC}"
     docker compose up -d --force-recreate
     
-    echo -e "${GREEN}✅ Mise à jour complète terminée !${NC}"
+    echo -e "${GREEN}✅ Complete update finished!${NC}"
 }
 
-# Fonction de nettoyage
+# Cleanup function
 cleanup_docker() {
-    echo -e "${YELLOW}🧹 Nettoyage Docker...${NC}"
+    echo -e "${YELLOW}🧹 Docker cleanup...${NC}"
     
-    # Images inutilisées
+    # Unused images
     docker image prune -f
     
-    # Volumes anonymes
+    # Anonymous volumes
     docker volume prune -f
     
-    # Réseaux inutilisés
+    # Unused networks
     docker network prune -f
     
-    echo -e "${GREEN}✅ Nettoyage terminé${NC}"
+    echo -e "${GREEN}✅ Cleanup completed${NC}"
 }
 
-# Vérifier l'état après mise à jour
+# Check status after update
 check_status() {
-    echo -e "${BLUE}🔍 Vérification de l'état des services...${NC}"
+    echo -e "${BLUE}🔍 Checking services status...${NC}"
     
-    sleep 5  # Attendre que les services démarrent
+    sleep 5  # Wait for services to start
     
-    echo -e "${YELLOW}📊 État des conteneurs:${NC}"
+    echo -e "${YELLOW}📊 Containers status:${NC}"
     docker compose ps
     
     echo ""
-    echo -e "${YELLOW}🌐 Test de connectivité:${NC}"
+    echo -e "${YELLOW}🌐 Connectivity test:${NC}"
     
-    # Tester n8n
+    # Test n8n
     if command -v curl &> /dev/null; then
         DOMAIN=$(grep DOMAIN_NAME $PROJECT_ROOT/.env | cut -d '=' -f2)
         SUBDOMAIN=$(grep SUBDOMAIN $PROJECT_ROOT/.env | cut -d '=' -f2)
@@ -148,7 +148,7 @@ check_status() {
             if curl -s -o /dev/null -w "%{http_code}" "$N8N_URL" | grep -q "200\|401\|302"; then
                 echo -e "  n8n: ${GREEN}✅ Accessible${NC}"
             else
-                echo -e "  n8n: ${RED}❌ Non accessible${NC}"
+                echo -e "  n8n: ${RED}❌ Not accessible${NC}"
             fi
         fi
     fi
@@ -156,19 +156,19 @@ check_status() {
     echo ""
 }
 
-# Sauvegarde préventive
+# Preventive backup
 backup_before_update() {
-    echo -e "${YELLOW}💾 Sauvegarde préventive recommandée${NC}"
-    read -p "Faire une sauvegarde avant la mise à jour? [Y/n]: " DO_BACKUP
+    echo -e "${YELLOW}💾 Preventive backup recommended${NC}"
+    read -p "Create backup before update? [Y/n]: " DO_BACKUP
     
     if [[ ! "$DO_BACKUP" =~ ^[Nn]$ ]]; then
         if [[ -f "backup.sh" ]]; then
-            echo -e "${BLUE}📦 Création de la sauvegarde...${NC}"
+            echo -e "${BLUE}📦 Creating backup...${NC}"
             ./backup.sh
         else
-            echo -e "${RED}❌ Script backup.sh non trouvé${NC}"
-            echo -e "${YELLOW}💾 Sauvegarde manuelle recommandée${NC}"
-            read -p "Continuer sans sauvegarde? [y/N]: " CONTINUE
+            echo -e "${RED}❌ backup.sh script not found${NC}"
+            echo -e "${YELLOW}💾 Manual backup recommended${NC}"
+            read -p "Continue without backup? [y/N]: " CONTINUE
             if [[ ! "$CONTINUE" =~ ^[Yy]$ ]]; then
                 exit 0
             fi
@@ -176,57 +176,57 @@ backup_before_update() {
     fi
 }
 
-# Programme principal
+# Main program
 main() {
-    # Vérifier que nous sommes dans le bon dossier
+    # Check that we are in the right directory
     if [[ ! -f "$PROJECT_ROOT/docker-compose.yml" ]]; then
-        echo -e "${RED}❌ Fichier docker-compose.yml non trouvé${NC}"
-        echo -e "${YELLOW}💡 Exécutez ce script depuis le dossier scripts de n8n-docker-caddy${NC}"
+        echo -e "${RED}❌ docker-compose.yml file not found${NC}"
+        echo -e "${YELLOW}💡 Run this script from the scripts folder of n8n-docker-caddy${NC}"
         exit 1
     fi
     
-    # Se déplacer dans le répertoire racine pour les commandes Docker
+    # Move to root directory for Docker commands
     cd $PROJECT_ROOT
     
-    # Afficher les versions actuelles
+    # Display current versions
     show_current_versions
     
-    # Proposer une sauvegarde
+    # Propose backup
     backup_before_update
     
-    # Choix du type de mise à jour
+    # Choice of update type
     update_choice
     
-    # Vérifier l'état
+    # Check status
     check_status
     
-    # Proposer le nettoyage
+    # Propose cleanup
     echo ""
-    read -p "Faire le nettoyage Docker? [y/N]: " DO_CLEANUP
+    read -p "Perform Docker cleanup? [y/N]: " DO_CLEANUP
     if [[ "$DO_CLEANUP" =~ ^[Yy]$ ]]; then
         cleanup_docker
     fi
     
-    # Afficher les nouvelles versions
+    # Display new versions
     echo ""
-    echo -e "${BLUE}🎉 Mise à jour terminée !${NC}"
+    echo -e "${BLUE}🎉 Update completed!${NC}"
     show_current_versions
     
-    # Conseils post-mise à jour
-    echo -e "${YELLOW}💡 Conseils post-mise à jour:${NC}"
-    echo "  • Vérifiez que vos workflows n8n fonctionnent"
-    echo "  • Testez l'accès à Flowise"
-    echo "  • Surveillez les logs: docker compose logs -f"
+    # Post-update tips
+    echo -e "${YELLOW}💡 Post-update tips:${NC}"
+    echo "  • Check that your n8n workflows work"
+    echo "  • Test Flowise access"
+    echo "  • Monitor logs: docker compose logs -f"
     
     if [[ -f "$PROJECT_ROOT/credentials.txt" ]]; then
-        echo "  • Vos identifiants sont dans: credentials.txt"
+        echo "  • Your credentials are in: credentials.txt"
     fi
     
-    # Retourner au répertoire racine pour faciliter les prochaines étapes
+    # Return to root directory to facilitate next steps
     cd $PROJECT_ROOT
 }
 
-# Vérifier si lancé avec des arguments
+# Check if launched with arguments
 if [[ $# -gt 0 ]]; then
     case $1 in
         --n8n-only) update_n8n_only ;;
@@ -236,14 +236,14 @@ if [[ $# -gt 0 ]]; then
         --help|help)
             echo "Usage: $0 [option]"
             echo "Options:"
-            echo "  --n8n-only    Mettre à jour n8n seulement"
-            echo "  --all         Mettre à jour tous les services"
-            echo "  --recreate    Recréer tous les conteneurs"
-            echo "  --cleanup     Nettoyer Docker seulement"
-            echo "  --help        Afficher cette aide"
+            echo "  --n8n-only    Update n8n only"
+            echo "  --all         Update all services"
+            echo "  --recreate    Recreate all containers"
+            echo "  --cleanup     Docker cleanup only"
+            echo "  --help        Show this help"
             exit 0
             ;;
-        *) echo -e "${RED}❌ Option inconnue: $1${NC}"; exit 1 ;;
+        *) echo -e "${RED}❌ Unknown option: $1${NC}"; exit 1 ;;
     esac
 else
     main

@@ -22,11 +22,11 @@ services:
       - NODE_ENV=production
       - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
-      # Configuration sécurisée
+      # Secure configuration
       - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-true}
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
-      # Optimisations
+      # Optimizations
       - N8N_RUNNERS_ENABLED=true
       - N8N_EXECUTIONS_DATA_PRUNE=true
       - N8N_EXECUTIONS_DATA_MAX_AGE=168
@@ -107,7 +107,7 @@ services:
       - portainer_data:/data
     command: -H unix:///var/run/docker.sock
     labels:
-      - "com.centurylinklabs.watchtower.enable=false"  # Ne pas auto-update Portainer
+      - "com.centurylinklabs.watchtower.enable=false"  # Do not auto-update Portainer
 
   watchtower:
     image: containrrr/watchtower:latest
@@ -115,10 +115,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - WATCHTOWER_SCHEDULE=0 0 4 * * 0  # Dimanche 4h du matin
+      - WATCHTOWER_SCHEDULE=0 0 4 * * 0  # Sunday 4 AM
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_STOPPED=true
-      - WATCHTOWER_LABEL_ENABLE=true  # Utiliser les labels pour contrôler les MàJ
+      - WATCHTOWER_LABEL_ENABLE=true  # Use labels to control updates
       - WATCHTOWER_NOTIFICATIONS=${WATCHTOWER_NOTIFICATIONS:-}
       - WATCHTOWER_NOTIFICATION_EMAIL_FROM=${SSL_EMAIL:-}
       - WATCHTOWER_NOTIFICATION_EMAIL_TO=${SSL_EMAIL:-}
@@ -127,13 +127,30 @@ services:
       - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER=${SMTP_USER:-}
       - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=${SMTP_PASSWORD:-}
     labels:
-      - "com.centurylinklabs.watchtower.enable=false"  # Ne pas s'auto-update
+      - "com.centurylinklabs.watchtower.enable=false"  # Do not self-update
 
   uptime-kuma:
     image: louislam/uptime-kuma:latest
     restart: unless-stopped
     volumes:
       - uptime_data:/app/data
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+  
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "127.0.0.1:9100:9100"
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
@@ -145,6 +162,10 @@ volumes:
   flowise_data:
     external: true
   grafana_data:
+    external: true
   prometheus_data:
+    external: true
   portainer_data:
+    external: true
   uptime_data:
+    external: true

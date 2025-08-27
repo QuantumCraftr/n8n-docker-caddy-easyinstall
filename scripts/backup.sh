@@ -1,9 +1,9 @@
 #!/bin/bash
-# 💾 Script de sauvegarde n8n-docker-caddy
+# 💾 n8n-docker-caddy Backup Script
 
 set -e
 
-# Couleurs
+# Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
@@ -15,85 +15,85 @@ BACKUP_DIR="$PROJECT_ROOT/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_NAME="n8n-backup-$DATE"
 
-echo -e "${GREEN}💾 Démarrage de la sauvegarde...${NC}"
+echo -e "${GREEN}💾 Starting backup...${NC}"
 
-# Créer le dossier de sauvegarde
+# Create backup directory
 mkdir -p "$BACKUP_DIR"
 
-# Fonction de sauvegarde d'un volume Docker
+# Docker volume backup function
 backup_volume() {
     local volume_name=$1
     local backup_file="$BACKUP_DIR/${BACKUP_NAME}_${volume_name}.tar.gz"
     
-    echo -e "${YELLOW}📦 Sauvegarde du volume $volume_name...${NC}"
+    echo -e "${YELLOW}📦 Backing up volume $volume_name...${NC}"
     
     if docker volume inspect "$volume_name" &>/dev/null; then
-        # Exécuter depuis le répertoire racine pour assurer que les chemins Docker sont corrects
+        # Execute from root directory to ensure Docker paths are correct
         (cd $PROJECT_ROOT && docker run --rm \
             -v "$volume_name":/data:ro \
             -v "$(pwd)/backups":/backup \
             alpine:latest \
             tar czf "/backup/${BACKUP_NAME}_${volume_name}.tar.gz" -C /data .)
         
-        echo -e "${GREEN}✅ Volume $volume_name sauvegardé${NC}"
+        echo -e "${GREEN}✅ Volume $volume_name backed up${NC}"
     else
-        echo -e "${RED}❌ Volume $volume_name non trouvé${NC}"
+        echo -e "${RED}❌ Volume $volume_name not found${NC}"
     fi
 }
 
-# Sauvegarder la configuration
-echo -e "${YELLOW}📝 Sauvegarde de la configuration...${NC}"
+# Backup configuration
+echo -e "${YELLOW}📝 Backing up configuration...${NC}"
 (cd $PROJECT_ROOT && tar czf "backups/${BACKUP_NAME}_config.tar.gz" \
     --exclude='backups' \
     --exclude='.git' \
     --exclude='*.log' \
     .)
 
-# Sauvegarder les volumes Docker
-# Exécuter les commandes Docker depuis le répertoire racine
+# Backup Docker volumes
+# Execute Docker commands from root directory
 cd $PROJECT_ROOT
 backup_volume "n8n_data"
 backup_volume "flowise_data"
 backup_volume "caddy_data"
 
-# Sauvegarder les volumes optionnels s'ils existent
+# Backup optional volumes if they exist
 backup_volume "grafana_data" 2>/dev/null || true
 backup_volume "prometheus_data" 2>/dev/null || true
 backup_volume "portainer_data" 2>/dev/null || true
 backup_volume "uptime_data" 2>/dev/null || true
 
-# Créer un fichier d'informations sur la sauvegarde
+# Create backup information file
 cat > "$BACKUP_DIR/${BACKUP_NAME}_info.txt" << EOF
-🔍 INFORMATIONS DE SAUVEGARDE
+🔍 BACKUP INFORMATION
 
 📅 Date: $(date)
 🖥️  Hostname: $(hostname)
-📋 Compose file: $([ -f docker-compose.yml ] && echo "docker-compose.yml" || echo "Non trouvé")
-🐳 Services actifs:
-$(docker compose ps --format "- {{.Name}}: {{.Status}}" 2>/dev/null || echo "Impossible de lister les services")
+📋 Compose file: $([ -f docker-compose.yml ] && echo "docker-compose.yml" || echo "Not found")
+🐳 Active services:
+$(docker compose ps --format "- {{.Name}}: {{.Status}}" 2>/dev/null || echo "Unable to list services")
 
-📦 Volumes sauvegardés:
+📦 Backed up volumes:
 $(ls -1 $BACKUP_DIR/${BACKUP_NAME}_*.tar.gz | sed 's|.*/||' | sed 's/^/- /')
 
-💾 Taille totale: $(du -sh $BACKUP_DIR/${BACKUP_NAME}_* | awk '{print $1}' | paste -sd+ | bc 2>/dev/null || echo "N/A") 
+💾 Total size: $(du -sh $BACKUP_DIR/${BACKUP_NAME}_* | awk '{print $1}' | paste -sd+ | bc 2>/dev/null || echo "N/A")
 
-🔧 Pour restaurer:
+🔧 To restore:
 cd scripts && ./restore.sh $BACKUP_NAME
 
 EOF
 
-# Nettoyer les anciennes sauvegardes (garder les 7 dernières)
-echo -e "${YELLOW}🧹 Nettoyage des anciennes sauvegardes...${NC}"
+# Clean old backups (keep last 7)
+echo -e "${YELLOW}🧹 Cleaning old backups...${NC}"
 find "$BACKUP_DIR" -name "n8n-backup-*" -type f -mtime +7 -delete 2>/dev/null || true
 
-# Résumé
-echo -e "${GREEN}✅ Sauvegarde terminée !${NC}"
-echo -e "${YELLOW}📁 Fichiers créés:${NC}"
+# Summary
+echo -e "${GREEN}✅ Backup completed!${NC}"
+echo -e "${YELLOW}📁 Files created:${NC}"
 ls -la "$BACKUP_DIR/${BACKUP_NAME}"*
 
 echo ""
-echo -e "${GREEN}💡 Conseil: Copiez ces fichiers vers un stockage externe${NC}"
-echo -e "${YELLOW}🔧 Restauration: cd scripts && ./restore.sh $BACKUP_NAME${NC}"
+echo -e "${GREEN}💡 Tip: Copy these files to external storage${NC}"
+echo -e "${YELLOW}🔧 Restore: cd scripts && ./restore.sh $BACKUP_NAME${NC}"
 
-# Retourner au répertoire racine pour faciliter les prochaines étapes
+# Return to root directory to facilitate next steps
 cd $PROJECT_ROOT

@@ -89,14 +89,21 @@ A     | uptime         | VOTRE_IP_SERVEUR
 ### Démarrage des services
 
 ```bash
-# Démarrer tous les services
-docker compose up -d
+# Démarrer selon votre installation
+# Installation basique
+docker compose -f docker-compose-basic.yml up -d
+
+# Installation avec monitoring
+docker compose -f docker-compose-monitoring.yml up -d
+
+# Installation pro
+docker compose -f docker-compose-pro.yml up -d
 
 # Voir l'état des services
-docker compose ps
+docker compose -f docker-compose-[niveau].yml ps
 
 # Suivre les logs en temps réel
-docker compose logs -f
+docker compose -f docker-compose-[niveau].yml logs -f
 ```
 
 ### Accès aux services
@@ -114,21 +121,24 @@ Les identifiants sont dans le fichier `credentials.txt` généré lors de l'inst
 ### Commandes utiles
 
 ```bash
-# Redémarrer un service spécifique
-docker compose restart n8n
+# Redémarrer un service spécifique (remplacez [niveau] par basic/monitoring/pro)
+docker compose -f docker-compose-[niveau].yml restart n8n
 
 # Voir les logs d'un service
-docker compose logs n8n
+docker compose -f docker-compose-[niveau].yml logs n8n
 
 # Mettre à jour les images
-docker compose pull
-docker compose up -d
+docker compose -f docker-compose-[niveau].yml pull
+docker compose -f docker-compose-[niveau].yml up -d
 
 # Sauvegarder les données
 cd scripts && ./backup.sh
 
+# Mettre à jour avec le script
+cd scripts && ./update.sh
+
 # Arrêter tous les services
-docker compose down
+docker compose -f docker-compose-[niveau].yml down
 ```
 
 ## 🔧 Configuration avancée
@@ -180,11 +190,11 @@ Avec l'installation Pro, vous avez accès à :
 
 ```bash
 # Script de sauvegarde manuel
-./backup.sh
+cd scripts && ./backup.sh
 
 # Programmer des sauvegardes automatiques
 crontab -e
-# Ajouter: 0 3 * * * /chemin/vers/backup.sh
+# Ajouter: 0 3 * * * /chemin/vers/n8n-docker-caddy-easyinstall/scripts/backup.sh
 ```
 
 ### Mises à jour
@@ -203,8 +213,8 @@ cd scripts && ./update.sh
 
 **SSL ne fonctionne pas**
 ```bash
-# Vérifier les logs de Caddy
-docker compose logs caddy
+# Vérifier les logs de Caddy (remplacez [niveau] par votre installation)
+docker compose -f docker-compose-[niveau].yml logs caddy
 
 # Vérifier que les DNS pointent bien vers votre serveur
 nslookup votre-domaine.com
@@ -212,11 +222,11 @@ nslookup votre-domaine.com
 
 **Service ne démarre pas**
 ```bash
-# Voir les erreurs
-docker compose logs [nom-service]
+# Voir les erreurs (remplacez [niveau] par votre installation)
+docker compose -f docker-compose-[niveau].yml logs [nom-service]
 
 # Redémarrer le service
-docker compose restart [nom-service]
+docker compose -f docker-compose-[niveau].yml restart [nom-service]
 ```
 
 **Espace disque plein**
@@ -232,11 +242,11 @@ df -h
 ### Logs et diagnostics
 
 ```bash
-# Logs complets
-docker compose logs -f --tail=100
+# Logs complets (remplacez [niveau] par votre installation)
+docker compose -f docker-compose-[niveau].yml logs -f --tail=100
 
 # État des conteneurs
-docker compose ps
+docker compose -f docker-compose-[niveau].yml ps
 
 # Utilisation des ressources
 docker stats --no-stream
