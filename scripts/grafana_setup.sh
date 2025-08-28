@@ -4,6 +4,10 @@
 
 set -e
 
+# Determine script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 # Colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -12,9 +16,9 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Check if .env file exists and load variables
-if [[ -f ".env" ]]; then
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
     echo -e "${BLUE}📊 Loading configuration from .env file...${NC}"
-    source .env
+    source "$PROJECT_ROOT/.env"
     DOMAIN=${DOMAIN_NAME}
 else
     echo -e "${YELLOW}⚠️  .env file not found. Please run setup.sh first or enter your domain manually.${NC}"
@@ -29,12 +33,12 @@ echo -e "${BLUE}📊 Setting up Grafana configuration for domain: ${GREEN}$DOMAI
 
 # Create directory structure
 echo "Creating directory structure..."
-mkdir -p grafana/datasources
-mkdir -p grafana/dashboards
-mkdir -p grafana/provisioning
+mkdir -p "$PROJECT_ROOT/grafana/datasources"
+mkdir -p "$PROJECT_ROOT/grafana/dashboards"
+mkdir -p "$PROJECT_ROOT/grafana/provisioning"
 
 # 1. Prometheus datasource configuration
-cat > grafana/datasources/prometheus.yml << 'EOF'
+cat > "$PROJECT_ROOT/grafana/datasources/prometheus.yml" << 'EOF'
 apiVersion: 1
 
 datasources:
@@ -47,7 +51,7 @@ datasources:
 EOF
 
 # 2. Dashboard provisioning configuration
-cat > grafana/dashboards/dashboard.yml << 'EOF'
+cat > "$PROJECT_ROOT/grafana/dashboards/dashboard.yml" << 'EOF'
 apiVersion: 1
 
 providers:
@@ -63,7 +67,7 @@ providers:
 EOF
 
 # 3. Enhanced Prometheus configuration with Node Exporter
-cat > prometheus/prometheus.yml << 'EOF'
+cat > "$PROJECT_ROOT/prometheus/prometheus.yml" << 'EOF'
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -114,7 +118,7 @@ scrape_configs:
 EOF
 
 # 4. Create Docker Containers Dashboard
-cat > grafana/dashboards/docker-containers.json << 'EOF'
+cat > "$PROJECT_ROOT/grafana/dashboards/docker-containers.json" << 'EOF'
 {
   "annotations": {
     "list": [
@@ -515,7 +519,7 @@ cat > grafana/dashboards/docker-containers.json << 'EOF'
 EOF
 
 # 5. Create System Overview Dashboard
-cat > grafana/dashboards/system-overview.json << 'EOF'
+cat > "$PROJECT_ROOT/grafana/dashboards/system-overview.json" << 'EOF'
 {
   "annotations": {
     "list": []
