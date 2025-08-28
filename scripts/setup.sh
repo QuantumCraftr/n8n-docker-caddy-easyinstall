@@ -49,14 +49,96 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check Docker Compose
-if ! command -v docker compose &> /dev/null; then
+# Function to install Docker Compose v2
+install_docker_compose_v2() {
+    echo -e "${BLUE}🔧 Installing Docker Compose v2...${NC}"
+    
+    # Detect OS
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Linux installation
+        DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
+        mkdir -p $DOCKER_CONFIG/cli-plugins
+        
+        # Get latest version
+        LATEST_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        
+        echo -e "${YELLOW}📥 Downloading Docker Compose $LATEST_VERSION...${NC}"
+        curl -SL "https://github.com/docker/compose/releases/download/$LATEST_VERSION/docker-compose-linux-x86_64" -o $DOCKER_CONFIG/cli-plugins/docker-compose
+        chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+        
+        echo -e "${GREEN}✅ Docker Compose v2 installed successfully!${NC}"
+        
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS - usually comes with Docker Desktop
+        echo -e "${YELLOW}ℹ️  On macOS, update Docker Desktop to get Docker Compose v2${NC}"
+        echo -e "${BLUE}📖 Download from: https://www.docker.com/products/docker-desktop${NC}"
+        
+    else
+        echo -e "${YELLOW}⚠️  Please install Docker Compose v2 manually for your OS${NC}"
+        echo -e "${BLUE}📖 Instructions: https://docs.docker.com/compose/install/linux/${NC}"
+    fi
+}
+
+# Check Docker Compose and determine version
+DOCKER_COMPOSE_CMD=""
+
+if command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
+    # Docker Compose v2 (integrated with Docker)
+    DOCKER_COMPOSE_CMD="docker compose"
+    COMPOSE_VERSION=$(docker compose version --short 2>/dev/null || echo "unknown")
+    echo -e "${GREEN}✅ Docker Compose v2 detected (version: $COMPOSE_VERSION)${NC}"
+    
+elif command -v docker-compose &> /dev/null; then
+    # Docker Compose v1 (standalone)
+    COMPOSE_VERSION=$(docker-compose version --short 2>/dev/null || echo "unknown")
+    echo -e "${YELLOW}⚠️  Docker Compose v1 detected (version: $COMPOSE_VERSION)${NC}"
+    echo -e "${BLUE}💡 Docker Compose v2 is recommended for better performance and features${NC}"
+    echo ""
+    read -p "Would you like to install Docker Compose v2? [Y/n]: " INSTALL_V2
+    
+    if [[ ! "$INSTALL_V2" =~ ^[Nn]$ ]]; then
+        install_docker_compose_v2
+        
+        # Re-check after installation
+        if command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
+            DOCKER_COMPOSE_CMD="docker compose"
+            echo -e "${GREEN}✅ Now using Docker Compose v2${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Falling back to Docker Compose v1${NC}"
+            DOCKER_COMPOSE_CMD="docker-compose"
+        fi
+    else
+        DOCKER_COMPOSE_CMD="docker-compose"
+        echo -e "${YELLOW}⏭️  Continuing with Docker Compose v1${NC}"
+    fi
+    
+else
+    # No Docker Compose found
     echo -e "${RED}❌ Docker Compose is not installed${NC}"
-    echo -e "${YELLOW}📖 Follow instructions: https://docs.docker.com/compose/install/${NC}"
-    exit 1
+    echo ""
+    read -p "Would you like to install Docker Compose v2? [Y/n]: " INSTALL_COMPOSE
+    
+    if [[ ! "$INSTALL_COMPOSE" =~ ^[Nn]$ ]]; then
+        install_docker_compose_v2
+        
+        # Check if installation was successful
+        if command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
+            DOCKER_COMPOSE_CMD="docker compose"
+            echo -e "${GREEN}✅ Docker Compose v2 installed and ready!${NC}"
+        else
+            echo -e "${RED}❌ Installation failed. Please install Docker Compose manually${NC}"
+            echo -e "${YELLOW}📖 Instructions: https://docs.docker.com/compose/install/${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}❌ Docker Compose is required for this installation${NC}"
+        echo -e "${YELLOW}📖 Follow instructions: https://docs.docker.com/compose/install/${NC}"
+        exit 1
+    fi
 fi
 
 echo -e "${GREEN}✅ Prerequisites OK${NC}"
+echo -e "${BLUE}🐳 Using command: ${GREEN}$DOCKER_COMPOSE_CMD${NC}"
 echo ""
 
 # Interactive configuration
@@ -344,11 +426,12 @@ CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
 3. Passwords are also stored in the .env file
 
 🚀 Useful commands:
-- Start: docker compose -f $COMPOSE_FILE up -d
-- Stop: docker compose -f $COMPOSE_FILE down
-- Logs: docker compose -f $COMPOSE_FILE logs -f
-- Restart: docker compose -f $COMPOSE_FILE restart
-- Update: ./scripts/update.sh
+- Start: $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE up -d
+- Stop: $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE down
+- Logs: $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE logs -f
+- Restart: $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE restart
+- Update: cd scripts && ./update.sh
+- Backup: cd scripts && ./backup.sh
 "
 
 # Write the complete content in one operation
@@ -368,39 +451,34 @@ echo -e "${YELLOW}📋 Important information saved in credentials.txt${NC}"
 echo -e "${RED}⚠️  READ the credentials.txt file and save it!${NC}"
 echo ""
 
-# Propose Grafana setup for monitoring/pro installations
+# Information about optional Grafana setup
 if [[ "$INSTALL_LEVEL" != "basic" ]]; then
     echo -e "${BLUE}📊 Optional: Enhanced Monitoring Setup${NC}"
-    echo "Would you like to configure advanced Grafana dashboards with system metrics?"
-    echo "This will add Node Exporter and beautiful pre-configured dashboards."
+    echo "After starting your services, you can configure advanced Grafana dashboards"
+    echo "with system metrics by running the grafana setup script."
     echo ""
-    read -p "Setup advanced monitoring? [y/N]: " SETUP_GRAFANA
-    
-    if [[ "$SETUP_GRAFANA" =~ ^[Yy]$ ]]; then
-        if [[ -f "$SCRIPT_DIR/grafana_setup.sh" ]]; then
-            echo -e "${BLUE}🚀 Running Grafana setup...${NC}"
-            chmod +x "$SCRIPT_DIR/grafana_setup.sh" 2>/dev/null || true
-            cd "$SCRIPT_DIR" && ./grafana_setup.sh && cd "$PROJECT_ROOT"
-            echo -e "${GREEN}✅ Grafana dashboards configured!${NC}"
-        else
-            echo -e "${YELLOW}⚠️  grafana_setup.sh not found in scripts/ directory${NC}"
-            echo -e "${BLUE}💡 You can run it manually later: ${GREEN}cd scripts && ./grafana_setup.sh${NC}"
-        fi
-    fi
+    echo -e "${YELLOW}💡 After installation: ${GREEN}cd scripts && ./grafana_setup.sh${NC}"
 fi
 
 echo ""
 echo -e "${BLUE}🚀 Next steps:${NC}"
 echo "1. Verify that your DNS points to this server"
 echo -e "2. Go back to root directory: ${GREEN}cd \"$PROJECT_ROOT\"${NC}"
-echo -e "3. Start the installation: ${GREEN}docker compose -f $COMPOSE_FILE up -d${NC}"
+echo -e "3. Start the installation: ${GREEN}$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE up -d${NC}"
 echo "4. Wait 2-3 minutes for SSL certificates to be generated"
 echo "5. Access your services via the URLs provided"
+
+if [[ "$INSTALL_LEVEL" != "basic" ]]; then
+    echo -e "6. ${YELLOW}Optional:${NC} Enhanced monitoring: ${GREEN}cd scripts && ./grafana_setup.sh${NC}"
+fi
+
 echo ""
 echo -e "${YELLOW}💡 To manage your installation:${NC}"
-echo -e "   - View logs: ${GREEN}docker compose -f $COMPOSE_FILE logs -f${NC}"
-echo -e "   - Stop services: ${GREEN}docker compose -f $COMPOSE_FILE down${NC}"
-echo -e "   - Restart: ${GREEN}docker compose -f $COMPOSE_FILE restart${NC}"
+echo -e "   - View logs: ${GREEN}$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE logs -f${NC}"
+echo -e "   - Stop services: ${GREEN}$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE down${NC}"
+echo -e "   - Restart: ${GREEN}$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE restart${NC}"
+echo ""
+echo -e "${BLUE}📋 Your Docker Compose command: ${GREEN}$DOCKER_COMPOSE_CMD${NC}"
 echo ""
 echo -e "${GREEN}✨ Installation configured successfully!${NC}"
 
