@@ -4,6 +4,9 @@
 
 set -e
 
+# Ensure all scripts are executable
+chmod +x scripts/*.sh 2>/dev/null || true
+
 # Colors for display
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -13,6 +16,8 @@ NC='\033[0m' # No Color
 
 # Path to parent directory (project root)
 PROJECT_ROOT=".."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 echo -e "${BLUE}"
 cat << "EOF"
@@ -372,13 +377,14 @@ if [[ "$INSTALL_LEVEL" != "basic" ]]; then
     read -p "Setup advanced monitoring? [y/N]: " SETUP_GRAFANA
     
     if [[ "$SETUP_GRAFANA" =~ ^[Yy]$ ]]; then
-        if [[ -f "scripts/grafana_setup.sh" ]]; then
+        if [[ -f "$SCRIPT_DIR/grafana_setup.sh" ]]; then
             echo -e "${BLUE}🚀 Running Grafana setup...${NC}"
-            cd scripts && ./grafana_setup.sh && cd ..
+            chmod +x "$SCRIPT_DIR/grafana_setup.sh" 2>/dev/null || true
+            cd "$SCRIPT_DIR" && ./grafana_setup.sh && cd "$PROJECT_ROOT"
             echo -e "${GREEN}✅ Grafana dashboards configured!${NC}"
         else
             echo -e "${YELLOW}⚠️  grafana_setup.sh not found in scripts/ directory${NC}"
-            echo -e "${BLUE}💡 You can run it manually later: ${GREEN}./scripts/grafana_setup.sh${NC}"
+            echo -e "${BLUE}💡 You can run it manually later: ${GREEN}cd scripts && ./grafana_setup.sh${NC}"
         fi
     fi
 fi
@@ -386,7 +392,7 @@ fi
 echo ""
 echo -e "${BLUE}🚀 Next steps:${NC}"
 echo "1. Verify that your DNS points to this server"
-echo -e "2. Go back to root directory: ${GREEN}cd ..${NC}"
+echo -e "2. Go back to root directory: ${GREEN}cd \"$PROJECT_ROOT\"${NC}"
 echo -e "3. Start the installation: ${GREEN}docker compose -f $COMPOSE_FILE up -d${NC}"
 echo "4. Wait 2-3 minutes for SSL certificates to be generated"
 echo "5. Access your services via the URLs provided"
@@ -399,4 +405,4 @@ echo ""
 echo -e "${GREEN}✨ Installation configured successfully!${NC}"
 
 # Return to root directory to facilitate next steps
-cd $PROJECT_ROOT
+cd "$PROJECT_ROOT"
