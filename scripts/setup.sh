@@ -451,6 +451,25 @@ echo -e "${YELLOW}📋 Important information saved in credentials.txt${NC}"
 echo -e "${RED}⚠️  READ the credentials.txt file and save it!${NC}"
 echo ""
 
+# Propose to display credentials
+read -p "Display your credentials now? [Y/n]: " SHOW_CREDENTIALS
+if [[ ! "$SHOW_CREDENTIALS" =~ ^[Nn]$ ]]; then
+    echo ""
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}📋 YOUR GENERATED CREDENTIALS${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    cat "$PROJECT_ROOT/credentials.txt"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${RED}🔴 SECURITY REMINDER:${NC}"
+    echo -e "${YELLOW}1. 📷 Screenshot or copy these credentials to a safe place${NC}"
+    echo -e "${YELLOW}2. 🗑️  Delete credentials.txt after saving: ${GREEN}rm credentials.txt${NC}"
+    echo -e "${YELLOW}3. 🔐 Passwords are also stored in .env file${NC}"
+    echo ""
+    read -p "Press Enter to continue..."
+fi
+echo ""
+
 # Information about optional Grafana setup
 if [[ "$INSTALL_LEVEL" != "basic" ]]; then
     echo -e "${BLUE}📊 Optional: Enhanced Monitoring Setup${NC}"
@@ -481,6 +500,9 @@ echo ""
 echo -e "${BLUE}📋 Your Docker Compose command: ${GREEN}$DOCKER_COMPOSE_CMD${NC}"
 echo ""
 echo -e "${GREEN}✨ Installation configured successfully!${NC}"
+echo ""
+echo -e "${RED}🔴 FINAL SECURITY REMINDER:${NC}"
+echo -e "${YELLOW}Don't forget to delete credentials.txt after installation: ${GREEN}rm credentials.txt${NC}"
 
 # Return to root directory to facilitate next steps
 cd "$PROJECT_ROOT"

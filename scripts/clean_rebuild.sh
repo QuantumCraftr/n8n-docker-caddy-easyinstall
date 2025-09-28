@@ -4,6 +4,17 @@
 
 set -e
 
+# Detect Docker Compose command (same logic as setup.sh)
+DOCKER_COMPOSE_CMD=""
+if command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+else
+    echo -e "${RED}❌ Docker Compose not found${NC}"
+    exit 1
+fi
+
 # Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -16,10 +27,10 @@ echo "=================================================="
 
 # 1. Stop all n8n-related containers
 echo -e "${YELLOW}⏹️  Stopping all containers...${NC}"
-docker compose -f docker-compose-pro.yml down 2>/dev/null || true
-docker compose -f docker-compose-monitoring.yml down 2>/dev/null || true  
-docker compose -f docker-compose-basic.yml down 2>/dev/null || true
-docker compose -f docker-compose.yml down 2>/dev/null || true
+$DOCKER_COMPOSE_CMD -f docker-compose-pro.yml down 2>/dev/null || true
+$DOCKER_COMPOSE_CMD -f docker-compose-monitoring.yml down 2>/dev/null || true
+$DOCKER_COMPOSE_CMD -f docker-compose-basic.yml down 2>/dev/null || true
+$DOCKER_COMPOSE_CMD -f docker-compose.yml down 2>/dev/null || true
 
 # 2. Remove all n8n containers (even stopped ones)
 echo -e "${YELLOW}🗑️  Removing stopped containers...${NC}"
@@ -76,7 +87,7 @@ echo "1. cd scripts"
 echo "2. ./setup.sh"
 echo "3. Follow the installation process"
 echo "4. cd .."
-echo "5. docker compose -f docker-compose-[level].yml up -d"
+echo "5. $DOCKER_COMPOSE_CMD -f docker-compose-[level].yml up -d"
 echo "6. Test all services"
 echo ""
 echo -e "${YELLOW}💡 Note: Docker images are preserved to speed up redeployment${NC}"

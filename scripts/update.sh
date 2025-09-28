@@ -13,6 +13,17 @@ NC='\033[0m'
 # Path to parent directory (project root)
 PROJECT_ROOT=".."
 
+# Detect Docker Compose command (same logic as setup.sh)
+DOCKER_COMPOSE_CMD=""
+if command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+else
+    echo -e "${RED}❌ Docker Compose not found${NC}"
+    exit 1
+fi
+
 echo -e "${BLUE}🔄 n8n-docker-caddy Update${NC}"
 echo ""
 
@@ -21,20 +32,20 @@ show_current_versions() {
     echo -e "${YELLOW}📋 Current versions:${NC}"
     
     # n8n
-    if docker compose ps n8n 2>/dev/null | grep -q "Up"; then
-        N8N_VERSION=$(docker compose exec -T n8n n8n --version 2>/dev/null || echo "N/A")
+    if $DOCKER_COMPOSE_CMD ps n8n 2>/dev/null | grep -q "Up"; then
+        N8N_VERSION=$($DOCKER_COMPOSE_CMD exec -T n8n n8n --version 2>/dev/null || echo "N/A")
         echo -e "  n8n: ${GREEN}$N8N_VERSION${NC}"
     fi
     
     # Caddy
-    if docker compose ps caddy 2>/dev/null | grep -q "Up"; then
-        CADDY_VERSION=$(docker compose exec -T caddy caddy version 2>/dev/null || echo "N/A")
+    if $DOCKER_COMPOSE_CMD ps caddy 2>/dev/null | grep -q "Up"; then
+        CADDY_VERSION=$($DOCKER_COMPOSE_CMD exec -T caddy caddy version 2>/dev/null || echo "N/A")
         echo -e "  Caddy: ${GREEN}$CADDY_VERSION${NC}"
     fi
     
     # Flowise
-    if docker compose ps flowise 2>/dev/null | grep -q "Up"; then
-        echo -e "  Flowise: ${GREEN}$(docker compose images flowise --format "{{.Tag}}")${NC}"
+    if $DOCKER_COMPOSE_CMD ps flowise 2>/dev/null | grep -q "Up"; then
+        echo -e "  Flowise: ${GREEN}$($DOCKER_COMPOSE_CMD images flowise --format "{{.Tag}}")${NC}"
     fi
     
     echo ""
@@ -63,8 +74,8 @@ update_choice() {
 update_n8n_only() {
     echo -e "${BLUE}🚀 Quick n8n update...${NC}"
     
-    docker compose pull n8n
-    docker compose up -d n8n
+    $DOCKER_COMPOSE_CMD pull n8n
+    $DOCKER_COMPOSE_CMD up -d n8n
     
     echo -e "${GREEN}✅ n8n updated!${NC}"
 }
@@ -75,11 +86,11 @@ update_all() {
     
     # Download new images
     echo -e "${YELLOW}⬇️ Downloading new images...${NC}"
-    docker compose pull
+    $DOCKER_COMPOSE_CMD pull
     
     # Restart services
     echo -e "${YELLOW}🔄 Restarting services...${NC}"
-    docker compose up -d
+    $DOCKER_COMPOSE_CMD up -d
     
     echo -e "${GREEN}✅ All services updated!${NC}"
 }
@@ -97,15 +108,15 @@ update_recreate() {
     
     # Download new images
     echo -e "${YELLOW}⬇️ Downloading new images...${NC}"
-    docker compose pull
+    $DOCKER_COMPOSE_CMD pull
     
     # Stop services
     echo -e "${YELLOW}⏹️ Stopping services...${NC}"
-    docker compose down
+    $DOCKER_COMPOSE_CMD down
     
     # Restart with recreation
     echo -e "${YELLOW}🚀 Recreating containers...${NC}"
-    docker compose up -d --force-recreate
+    $DOCKER_COMPOSE_CMD up -d --force-recreate
     
     echo -e "${GREEN}✅ Complete update finished!${NC}"
 }
@@ -133,7 +144,7 @@ check_status() {
     sleep 5  # Wait for services to start
     
     echo -e "${YELLOW}📊 Containers status:${NC}"
-    docker compose ps
+    $DOCKER_COMPOSE_CMD ps
     
     echo ""
     echo -e "${YELLOW}🌐 Connectivity test:${NC}"
@@ -216,7 +227,7 @@ main() {
     echo -e "${YELLOW}💡 Post-update tips:${NC}"
     echo "  • Check that your n8n workflows work"
     echo "  • Test Flowise access"
-    echo "  • Monitor logs: docker compose logs -f"
+    echo "  • Monitor logs: $DOCKER_COMPOSE_CMD logs -f"
     
     if [[ -f "$PROJECT_ROOT/credentials.txt" ]]; then
         echo "  • Your credentials are in: credentials.txt"

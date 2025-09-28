@@ -11,6 +11,17 @@ NC='\033[0m'
 
 # Configuration
 PROJECT_ROOT=".."
+
+# Detect Docker Compose command (same logic as setup.sh)
+DOCKER_COMPOSE_CMD=""
+if command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+else
+    echo -e "${RED}❌ Docker Compose not found${NC}"
+    exit 1
+fi
 BACKUP_DIR="$PROJECT_ROOT/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_NAME="n8n-backup-$DATE"
@@ -70,7 +81,7 @@ cat > "$BACKUP_DIR/${BACKUP_NAME}_info.txt" << EOF
 🖥️  Hostname: $(hostname)
 📋 Compose file: $([ -f docker-compose.yml ] && echo "docker-compose.yml" || echo "Not found")
 🐳 Active services:
-$(docker compose ps --format "- {{.Name}}: {{.Status}}" 2>/dev/null || echo "Unable to list services")
+$($DOCKER_COMPOSE_CMD ps --format "- {{.Name}}: {{.Status}}" 2>/dev/null || echo "Unable to list services")
 
 📦 Backed up volumes:
 $(ls -1 $BACKUP_DIR/${BACKUP_NAME}_*.tar.gz | sed 's|.*/||' | sed 's/^/- /')

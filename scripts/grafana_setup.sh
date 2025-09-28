@@ -33,9 +33,35 @@ echo -e "${BLUE}📊 Setting up Grafana configuration for domain: ${GREEN}$DOMAI
 
 # Create directory structure
 echo "Creating directory structure..."
-mkdir -p "$PROJECT_ROOT/grafana/datasources"
-mkdir -p "$PROJECT_ROOT/grafana/dashboards"
-mkdir -p "$PROJECT_ROOT/grafana/provisioning"
+
+# Check if grafana directory exists and handle permissions
+if [[ -d "$PROJECT_ROOT/grafana" ]]; then
+    echo -e "${YELLOW}📁 Grafana directory already exists (created by Docker)${NC}"
+    echo -e "${BLUE}🔧 Fixing permissions...${NC}"
+    
+    # Try to fix permissions, use sudo if needed
+    if ! mkdir -p "$PROJECT_ROOT/grafana/datasources" 2>/dev/null; then
+        echo -e "${YELLOW}⚠️  Need elevated permissions to create directories${NC}"
+        read -p "Use sudo to fix permissions? [Y/n]: " USE_SUDO
+        
+        if [[ ! "$USE_SUDO" =~ ^[Nn]$ ]]; then
+            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT/grafana" 2>/dev/null || true
+            sudo mkdir -p "$PROJECT_ROOT/grafana/datasources" 2>/dev/null || true
+            sudo mkdir -p "$PROJECT_ROOT/grafana/dashboards" 2>/dev/null || true
+            sudo mkdir -p "$PROJECT_ROOT/grafana/provisioning" 2>/dev/null || true
+            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT/grafana" 2>/dev/null || true
+        else
+            echo -e "${RED}❌ Cannot create directories without proper permissions${NC}"
+            echo -e "${YELLOW}💡 Please run: sudo chown -R \$(whoami):\$(whoami) grafana/${NC}"
+            exit 1
+        fi
+    fi
+else
+    # Directory doesn't exist, create normally
+    mkdir -p "$PROJECT_ROOT/grafana/datasources"
+    mkdir -p "$PROJECT_ROOT/grafana/dashboards"
+    mkdir -p "$PROJECT_ROOT/grafana/provisioning"
+fi
 
 # 1. Prometheus datasource configuration
 cat > "$PROJECT_ROOT/grafana/datasources/prometheus.yml" << 'EOF'
@@ -646,7 +672,7 @@ echo "├── grafana/dashboards/system-overview.json"
 echo "└── prometheus/prometheus.yml"
 echo ""
 echo -e "${YELLOW}🚀 Next steps:${NC}"
-echo "1. Restart your stack: docker compose -f docker-compose-pro.yml down && docker compose -f docker-compose-pro.yml up -d"
+echo "1. Restart your stack to load new configurations"
 echo "2. Wait for all services to start (2-3 minutes)"
 echo -e "3. Access Grafana at: ${GREEN}https://monitoring.$DOMAIN${NC}"
 echo "4. Login with admin / [your-grafana-password from credentials.txt]"

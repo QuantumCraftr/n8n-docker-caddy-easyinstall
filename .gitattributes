@@ -1,0 +1,2 @@
+# Toujours stocker les fichiers de script shell avec LF, même sur Windows
+*.sh text eol=lf
