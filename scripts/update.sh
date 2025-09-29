@@ -71,7 +71,8 @@ show_current_versions() {
     
     # Flowise
     if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps flowise 2>/dev/null | grep -q "Up"; then
-        echo -e "  Flowise: ${GREEN}$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" images flowise --format "{{.Tag}}")${NC}"
+        FLOWISE_TAG=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" images flowise --format "table {{.Tag}}" 2>/dev/null | tail -n +2 | head -1 || echo "N/A")
+        echo -e "  Flowise: ${GREEN}$FLOWISE_TAG${NC}"
     fi
     
     echo ""
@@ -201,9 +202,9 @@ backup_before_update() {
     read -p "Create backup before update? [Y/n]: " DO_BACKUP
     
     if [[ ! "$DO_BACKUP" =~ ^[Nn]$ ]]; then
-        if [[ -f "backup.sh" ]]; then
+        if [[ -f "scripts/backup.sh" ]]; then
             echo -e "${BLUE}📦 Creating backup...${NC}"
-            ./backup.sh
+            ./scripts/backup.sh
         else
             echo -e "${RED}❌ backup.sh script not found${NC}"
             echo -e "${YELLOW}💾 Manual backup recommended${NC}"
