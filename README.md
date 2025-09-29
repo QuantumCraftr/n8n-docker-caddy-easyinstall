@@ -35,22 +35,86 @@ This is a community fork of the original n8n-docker-caddy project, enhanced with
 - UFW firewall integration
 - Secure defaults
 
+## 📋 Prerequisites
+
+- **VPS Hetzner, DigitalOcean, or personal VPS** (Ubuntu 22.04/24.04 LTS)
+- **SSH** access enabled
+- **Domain name** (optional but recommended) with subdomain (A) records registered
+- Terminal Client (iTerm, PowerShell, etc.)
+
 ## 🚀 Quick Start
+
+**📖 For detailed step-by-step instructions, refer to our comprehensive guides:**
+- **[🇺🇸 English Guide](README-EASYINSTALL-ENG.MD)** - Complete installation and usage guide
+- **[🇫🇷 Guide Français](README-EASYINSTALL-FR.MD)** - Guide complet d'installation et d'utilisation
+
+### 1️⃣ Initial Server Setup
+
+#### 🔐 SSH Connection
+
+```bash
+ssh root@YOUR_SERVER_IP
+# Or to specify a different path for the ssh key:
+ssh -i ~/.ssh/my-key root@YOUR_SERVER_IP
+```
+
+#### 🔄 System Update
+
+```bash
+apt update && apt upgrade -y && apt autoremove -y
+```
+
+#### 🛡️ Create a Dedicated User (Best Practice)
+
+```bash
+adduser n8n-admin --gecos ""
+usermod -aG sudo,docker n8n-admin
+rsync --archive --chown=n8n-admin:n8n-admin ~/.ssh /home/n8n-admin
+
+# Or alternative command:
+# rsync -ahv --chown=n8n-admin:n8n-admin /root/.ssh /home/n8n-admin/
+```
+> **Why?** Avoids using `root` directly and isolates permissions for better security.
+
+#### 🔄 Switch to the New User
+
+```bash
+su - n8n-admin
+```
+
+### 2️⃣ Docker & Docker Compose Installation
+
+#### 🐳 Install Docker (as n8n-admin)
+
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+sudo usermod -aG docker $USER
+newgrp docker  # Reloads groups without reconnecting
+```
+
+### 3️⃣ Clone the Project
 
 ```bash
 git clone https://github.com/QuantumCraftr/n8n-docker-caddy-easyinstall
 cd n8n-docker-caddy-easyinstall
+```
+
+### 4️⃣ Run the Interactive Setup Script
+
+```bash
+chmod +x scripts/*.sh # Make scripts executable for the first time
 ./scripts/setup.sh
 ```
 
-> **Note**: Scripts automatically fix permissions and can be run from anywhere in the project.
-
-The setup script will guide you through:
-- Choosing your installation type (Basic/Monitoring/Pro)
-- Configuring your domain and subdomains
-- Setting up SSL certificates
-- Generating secure passwords
-- **NEW**: Optional advanced monitoring setup with beautiful dashboards
+> **The setup script will guide you through:**
+> - Choosing your installation type (Basic/Monitoring/Pro)
+> - Configuring your domain and subdomains
+> - Setting up SSL certificates
+> - Generating secure passwords
+> - Optional advanced monitoring setup with beautiful dashboards
+>
+> Scripts automatically manage further permissions and can be run from anywhere in the project after the initial `chmod`.
 
 ## 📊 Monitoring Features
 
@@ -67,10 +131,11 @@ The **Monitoring** and **Pro** installation levels now include:
 - **System Overview** - Server performance metrics  
 - **Ready-to-import IDs**: Node Exporter (1860), Docker (10619)
 
-## 📖 Documentation
+## 📖 Full Documentation
 
-- **[🇺🇸 English Guide](README-EASYINSTALL-ENG.MD)** - Complete installation and usage guide
-- **[🇫🇷 Guide Français](README-EASYINSTALL-FR.MD)** - Guide complet d'installation et d'utilisation
+For a complete and detailed guide, please refer to:
+- **[🇺🇸 English Guide](README-EASYINSTALL-ENG.MD)**
+- **[🇫🇷 Guide Français](README-EASYINSTALL-FR.MD)**
 
 ## 💡 Key Features
 
@@ -150,6 +215,31 @@ docker compose -f docker-compose-pro.yml down
 
 > **✨ New**: All scripts are now **location-independent** and include **automatic permission management**!
 
+### 🔔 Watchtower Email Notifications
+
+Watchtower is configured to automatically update your services (except Portainer and itself) every Sunday at 4 AM. To receive email notifications about these updates:
+
+1.  **Edit your `.env` file**:
+    ```bash
+    nano .env
+    ```
+2.  **Uncomment and configure the SMTP variables**:
+    ```dotenv
+    # 🔄 Watchtower notifications (optional for pro install)
+    WATCHTOWER_NOTIFICATIONS=email
+    SMTP_SERVER=your.smtp.server.com
+    SMTP_PORT=587
+    SMTP_USER=your-smtp-username
+    SMTP_PASSWORD=your-smtp-password
+    WATCHTOWER_NOTIFICATION_EMAIL_FROM=${SSL_EMAIL} # Reuses the SSL_EMAIL for sender
+    WATCHTOWER_NOTIFICATION_EMAIL_TO=${SSL_EMAIL}   # Reuses the SSL_EMAIL for recipient
+    ```
+    > **Note**: Replace `your.smtp.server.com`, `587`, `your-smtp-username`, and `your-smtp-password` with your actual SMTP server details. For Gmail, you might need an App Password.
+3.  **Restart Watchtower** to apply changes:
+    ```bash
+    docker compose -f docker-compose-pro.yml restart watchtower
+    ```
+
 ## 🎯 Access Your Services
 
 After installation, access your services at:
@@ -159,7 +249,10 @@ After installation, access your services at:
 - **Portainer**: `https://portainer.yourdomain.com` (Pro only)
 - **Uptime Kuma**: `https://uptime.yourdomain.com` (Pro only)
 
-Login credentials are saved in `credentials.txt` after setup.
+Login credentials are saved in `credentials.txt` after setup. You can view them with:
+```bash
+cat credentials.txt
+```
 
 ## 🔧 Advanced Configuration
 

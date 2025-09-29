@@ -52,7 +52,7 @@ cd n8n-docker-caddy-easyinstall
 ./scripts/setup.sh
 ```
 
-> **Note**: Scripts automatically fix permissions and can be run from anywhere in the project.
+> **Note**: Before running any script for the first time, ensure they are executable: `chmod +x scripts/*.sh`. Scripts then automatically manage further permissions and can be run from anywhere in the project.
 
 The script will guide you through the configuration!
 
@@ -123,7 +123,10 @@ After installation, your services will be available at:
 - **Portainer**: https://portainer.your-domain.com
 - **Uptime Kuma**: https://uptime.your-domain.com
 
-Credentials are in the `credentials.txt` file generated during installation.
+Credentials are in the `credentials.txt` file generated during installation. You can view them with:
+```bash
+cat credentials.txt
+```
 
 ### Useful commands
 
@@ -152,6 +155,31 @@ docker compose -f docker-compose-[level].yml down
 ```
 
 > **✨ New**: All scripts are now **location-independent** and include **automatic permission management**!
+
+### 🔔 Watchtower Email Notifications
+
+Watchtower is configured to automatically update your services (except Portainer and itself) every Sunday at 4 AM. To receive email notifications about these updates:
+
+1.  **Edit your `.env` file**:
+    ```bash
+    nano .env
+    ```
+2.  **Uncomment and configure the SMTP variables**:
+    ```dotenv
+    # 🔄 Watchtower notifications (optional for pro install)
+    WATCHTOWER_NOTIFICATIONS=email
+    SMTP_SERVER=your.smtp.server.com
+    SMTP_PORT=587
+    SMTP_USER=your-smtp-username
+    SMTP_PASSWORD=your-smtp-password
+    WATCHTOWER_NOTIFICATION_EMAIL_FROM=${SSL_EMAIL} # Reuses the SSL_EMAIL for sender
+    WATCHTOWER_NOTIFICATION_EMAIL_TO=${SSL_EMAIL}   # Reuses the SSL_EMAIL for recipient
+    ```
+    > **Note**: Replace `your.smtp.server.com`, `587`, `your-smtp-username`, and `your-smtp-password` with your actual SMTP server details. For Gmail, you might need an App Password.
+3.  **Restart Watchtower** to apply changes:
+    ```bash
+    docker compose -f docker-compose-pro.yml restart watchtower
+    ```
 
 ## 🔧 Advanced configuration
 
@@ -230,6 +258,8 @@ docker compose -f docker-compose-[level].yml logs caddy
 
 # Verify that DNS points to your server
 nslookup your-domain.com
+or 
+https://dnschecker.org/
 ```
 
 **Service not starting**
@@ -307,6 +337,19 @@ All scripts now include **automatic permission detection and fixing**:
 ./scripts/backup.sh         # Create backups
 ./scripts/clean_rebuild.sh  # Nuclear cleanup option
 ```
+
+### 🚨 When to Use Sudo
+
+**Always use sudo:**
+- [`clean_rebuild.sh`](scripts/clean_rebuild.sh) - Deletes Docker volumes and system files
+- [`backup.sh`](scripts/backup.sh) - For complete backup including protected files
+
+**Use sudo if prompted:**
+- [`setup.sh`](scripts/setup.sh) - Script will detect and ask if needed
+- [`grafana_setup.sh`](scripts/grafana_setup.sh) - If Docker created grafana directory
+
+**Usually no sudo needed:**
+- [`update.sh`](scripts/update.sh) - Only updates containers (if in docker group)
 
 ### Hardening
 

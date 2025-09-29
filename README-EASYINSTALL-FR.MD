@@ -52,7 +52,7 @@ cd n8n-docker-caddy-easyinstall
 ./scripts/setup.sh
 ```
 
-> **Note**: Les scripts corrigent automatiquement les permissions et peuvent être exécutés depuis n'importe où dans le projet.
+> **Note**: Avant d'exécuter un script pour la première fois, assurez-vous qu'ils sont exécutables : `chmod +x scripts/*.sh`. Les scripts gèrent ensuite automatiquement les permissions et peuvent être exécutés depuis n'importe où dans le projet.
 
 Le script vous guidera à travers la configuration !
 
@@ -123,7 +123,10 @@ Après installation, vos services seront disponibles sur :
 - **Portainer**: https://portainer.votre-domaine.com
 - **Uptime Kuma**: https://uptime.votre-domaine.com
 
-Les identifiants sont dans le fichier `credentials.txt` généré lors de l'installation.
+Les identifiants sont dans le fichier `credentials.txt` généré lors de l'installation. Vous pouvez les afficher avec :
+```bash
+cat credentials.txt
+```
 
 ### Commandes utiles
 
@@ -153,7 +156,32 @@ docker compose -f docker-compose-[niveau].yml down
 
 > **✨ Nouveau**: Tous les scripts sont maintenant **indépendants de l'emplacement** et incluent une **gestion automatique des permissions** !
 
-## 🔧 Configuration avancée
+### 🔔 Notifications e-mail Watchtower
+
+Watchtower est configuré pour mettre à jour automatiquement vos services (sauf Portainer et lui-même) tous les dimanches à 4h du matin. Pour recevoir des notifications par e-mail concernant ces mises à jour :
+
+1.  **Modifiez votre fichier `.env`** :
+    ```bash
+    nano .env
+    ```
+2.  **Décommentez et configurez les variables SMTP** :
+    ```dotenv
+    # 🔄 Watchtower notifications (optional for pro install)
+    WATCHTOWER_NOTIFICATIONS=email
+    SMTP_SERVER=votre.serveur.smtp.com
+    SMTP_PORT=587
+    SMTP_USER=votre-nom-utilisateur-smtp
+    SMTP_PASSWORD=votre-mot-de-passe-smtp
+    WATCHTOWER_NOTIFICATION_EMAIL_FROM=${SSL_EMAIL} # Réutilise l'e-mail SSL pour l'expéditeur
+    WATCHTOWER_NOTIFICATION_EMAIL_TO=${SSL_EMAIL}   # Réutilise l'e-mail SSL pour le destinataire
+    ```
+    > **Note**: Remplacez `votre.serveur.smtp.com`, `587`, `votre-nom-utilisateur-smtp` et `votre-mot-de-passe-smtp` par les détails de votre serveur SMTP. Pour Gmail, vous pourriez avoir besoin d'un mot de passe d'application.
+3.  **Redémarrez Watchtower** pour appliquer les modifications :
+    ```bash
+    docker compose -f docker-compose-pro.yml restart watchtower
+    ```
+
+##  Configuration avancée
 
 ### Variables d'environnement (.env)
 
@@ -230,6 +258,8 @@ docker compose -f docker-compose-[niveau].yml logs caddy
 
 # Vérifier que les DNS pointent bien vers votre serveur
 nslookup votre-domaine.com
+ou
+https://dnschecker.org/
 ```
 
 **Service ne démarre pas**
@@ -269,7 +299,7 @@ docker stats --no-stream
 - **GitHub Issues**: Pour les bugs et demandes de fonctionnalités
 - **Discussions**: Pour les questions et aide
 - **Wiki**: Documentation détaillée
-- **Skool Community**: [Lien vers votre groupe]
+- **Skool Community**: A venir
 
 ## 📚 Documentation
 
