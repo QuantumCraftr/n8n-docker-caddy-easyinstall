@@ -40,10 +40,10 @@ This is a community fork of the original n8n-docker-caddy project, enhanced with
 ```bash
 git clone https://github.com/QuantumCraftr/n8n-docker-caddy-easyinstall
 cd n8n-docker-caddy-easyinstall
-cd scripts
-chmod +x setup.sh
-./setup.sh
+./scripts/setup.sh
 ```
+
+> **Note**: Scripts automatically fix permissions and can be run from anywhere in the project.
 
 The setup script will guide you through:
 - Choosing your installation type (Basic/Monitoring/Pro)
@@ -89,6 +89,13 @@ The **Monitoring** and **Pro** installation levels now include:
 - Ports 80 and 443 open
 - **Recommended**: 2+ GB RAM for monitoring features
 
+### 🔧 Automatic Setup Features
+
+✅ **Smart Permission Management** - Scripts automatically detect and fix permission issues
+✅ **Location Independent** - Run scripts from anywhere in the project
+✅ **Error Recovery** - Intelligent handling of common setup problems
+✅ **Robust Path Resolution** - Works regardless of execution directory
+
 ## 🚀 Services Included
 
 | Service | Purpose | Installation Level | Dashboard |
@@ -114,17 +121,22 @@ docker compose -f docker-compose-pro.yml up -d
 docker compose -f docker-compose-pro.yml logs -f
 
 # Update services
-cd scripts && ./update.sh
+./scripts/update.sh
 
 # Backup data
-cd scripts && ./backup.sh
+./scripts/backup.sh
 
 # Setup advanced monitoring (optional)
-cd scripts && ./grafana_setup.sh
+./scripts/grafana_setup.sh
+
+# Complete cleanup (if needed)
+./scripts/clean_rebuild.sh
 
 # Stop services
 docker compose -f docker-compose-pro.yml down
 ```
+
+> **✨ New**: All scripts are now **location-independent** and include **automatic permission management**!
 
 ## 🎯 Access Your Services
 
@@ -148,8 +160,24 @@ If you prefer manual setup, import these dashboard IDs:
 ### Custom Monitoring Setup
 Run the Grafana setup script separately:
 ```bash
-cd scripts
-./grafana_setup.sh
+./scripts/grafana_setup.sh
+```
+
+### 🛡️ Permission Management
+
+All scripts now include **automatic permission detection and fixing**:
+
+- **Auto-executable**: Scripts automatically make themselves and siblings executable
+- **Smart ownership**: Detects and fixes directory ownership issues using `sudo` when needed
+- **Safe fallbacks**: Provides clear instructions if automatic fixes fail
+- **Cross-directory**: Works whether run from project root or `scripts/` directory
+
+```bash
+# These commands now work from anywhere in the project:
+./scripts/setup.sh      # Run initial setup
+./scripts/update.sh     # Update your installation
+./scripts/backup.sh     # Create backups
+./scripts/clean_rebuild.sh  # Nuclear cleanup option
 ```
 
 ## 🤝 Contributing

@@ -11,8 +11,44 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Path to parent directory (project root)
-PROJECT_ROOT=".."
+# Determine script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Auto-fix permissions function
+fix_permissions() {
+    echo -e "${YELLOW}🔧 Checking and fixing permissions...${NC}"
+    
+    # Make all scripts executable
+    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
+    
+    # Ensure project directories are accessible
+    if [[ ! -w "$PROJECT_ROOT" ]]; then
+        echo -e "${YELLOW}⚠️  Project directory not writable. Attempting to fix...${NC}"
+        if command -v sudo &> /dev/null; then
+            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT" 2>/dev/null || {
+                echo -e "${RED}❌ Cannot fix permissions. Please run: sudo chown -R \$(whoami):\$(whoami) $PROJECT_ROOT${NC}"
+                return 1
+            }
+        else
+            echo -e "${RED}❌ No sudo available and directory not writable${NC}"
+            return 1
+        fi
+    fi
+    
+    # Create necessary directories
+    mkdir -p "$PROJECT_ROOT/caddy_config" 2>/dev/null || true
+    mkdir -p "$PROJECT_ROOT/prometheus" 2>/dev/null || true
+    mkdir -p "$PROJECT_ROOT/grafana" 2>/dev/null || true
+    
+    return 0
+}
+
+# Run permissions check
+fix_permissions || {
+    echo -e "${RED}❌ Permission issues detected. Please fix manually or run with appropriate permissions.${NC}"
+    exit 1
+}
 
 echo -e "${BLUE}"
 cat << "EOF"
@@ -165,10 +201,10 @@ echo ""
 echo -e "${BLUE}🔧 Creating configuration files...${NC}"
 
 # Create caddy_config directory if needed
-mkdir -p $PROJECT_ROOT/caddy_config
+mkdir -p "$PROJECT_ROOT/caddy_config"
 
 # Generate .env file
-cat > $PROJECT_ROOT/.env << EOF
+cat > "$PROJECT_ROOT/.env" << EOF
 # 🌐 Domain configuration
 DATA_FOLDER=.
 DOMAIN_NAME=$DOMAIN_NAME
@@ -194,7 +230,7 @@ GRAFANA_PASSWORD=$GRAFANA_PASSWORD
 EOF
 
 # Generate Caddyfile
-cat > $PROJECT_ROOT/caddy_config/Caddyfile << EOF
+cat > "$PROJECT_ROOT/caddy_config/Caddyfile" << EOF
 $N8N_SUBDOMAIN.$DOMAIN_NAME {
     reverse_proxy n8n:5678 {
         flush_interval -1
@@ -213,7 +249,7 @@ EOF
 
 # Add services according to installation level
 if [[ "$INSTALL_LEVEL" != "basic" ]]; then
-    cat >> $PROJECT_ROOT/caddy_config/Caddyfile << EOF
+    cat >> "$PROJECT_ROOT/caddy_config/Caddyfile" << EOF
 
 $GRAFANA_SUBDOMAIN.$DOMAIN_NAME {
     reverse_proxy grafana:3000
@@ -222,7 +258,7 @@ EOF
 fi
 
 if [[ "$INSTALL_LEVEL" == "pro" ]]; then
-    cat >> $PROJECT_ROOT/caddy_config/Caddyfile << EOF
+    cat >> "$PROJECT_ROOT/caddy_config/Caddyfile" << EOF
 
 $PORTAINER_SUBDOMAIN.$DOMAIN_NAME {
     reverse_proxy portainer:9443 {
@@ -255,7 +291,7 @@ esac
 echo -e "${BLUE}🐳 Creating Docker volumes...${NC}"
 
 # Execute Docker commands from root directory
-cd $PROJECT_ROOT
+cd "$PROJECT_ROOT"
 
 # Check if Docker is working before creating volumes
 if ! docker info &> /dev/null; then
@@ -346,8 +382,18 @@ CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
 - Update: ./scripts/update.sh
 "
 
-# Write the complete content in one operation
-echo "$CREDENTIALS_CONTENT" > "$PROJECT_ROOT/credentials.txt"
+# Write the complete content in one operation with error handling
+if ! echo "$CREDENTIALS_CONTENT" > "$PROJECT_ROOT/credentials.txt" 2>/dev/null; then
+    echo -e "${YELLOW}⚠️  Cannot create credentials.txt directly. Trying with elevated permissions...${NC}"
+    if command -v sudo &> /dev/null; then
+        echo "$CREDENTIALS_CONTENT" | sudo tee "$PROJECT_ROOT/credentials.txt" > /dev/null
+        sudo chown $(whoami):$(whoami) "$PROJECT_ROOT/credentials.txt" 2>/dev/null || true
+    else
+        echo -e "${RED}❌ Failed to create credentials.txt - no sudo available${NC}"
+        echo -e "${YELLOW}💡 Please create the file manually with the following content:${NC}"
+        echo "$CREDENTIALS_CONTENT"
+    fi
+fi
 
 # Verify file was created successfully
 if [[ -f "$PROJECT_ROOT/credentials.txt" ]]; then
@@ -372,15 +418,15 @@ if [[ "$INSTALL_LEVEL" != "basic" ]]; then
     read -p "Setup advanced monitoring? [y/N]: " SETUP_GRAFANA
     
     if [[ "$SETUP_GRAFANA" =~ ^[Yy]$ ]]; then
-        if [[ -f "scripts/grafana_setup.sh" ]]; then
+        if [[ -f "$SCRIPT_DIR/grafana_setup.sh" ]]; then
             echo -e "${BLUE}🚀 Running Grafana setup...${NC}"
-            cd scripts && ./grafana_setup.sh && cd ..
+            "$SCRIPT_DIR/grafana_setup.sh"
             echo -e "${GREEN}✅ Grafana dashboards configured!${NC}"
             echo ""
             echo -e "${YELLOW}⚠️  Important: Grafana setup completed BEFORE Docker startup${NC}"
         else
             echo -e "${YELLOW}⚠️  grafana_setup.sh not found in scripts/ directory${NC}"
-            echo -e "${BLUE}💡 You can run it manually later: ${GREEN}./scripts/grafana_setup.sh${NC}"
+            echo -e "${BLUE}💡 You can run it manually later: ${GREEN}$SCRIPT_DIR/grafana_setup.sh${NC}"
             echo -e "${RED}🔴 BUT you must run it BEFORE starting Docker!${NC}"
         fi
     fi
@@ -406,4 +452,4 @@ echo ""
 echo -e "${GREEN}✨ Installation configured successfully!${NC}"
 
 # Return to root directory to facilitate next steps
-cd $PROJECT_ROOT
+cd "$PROJECT_ROOT"

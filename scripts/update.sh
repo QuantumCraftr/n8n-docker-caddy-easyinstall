@@ -10,8 +10,39 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Path to parent directory (project root)
-PROJECT_ROOT=".."
+# Determine script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Auto-fix permissions function
+fix_permissions() {
+    echo -e "${YELLOW}🔧 Checking and fixing permissions...${NC}"
+    
+    # Make all scripts executable
+    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
+    
+    # Ensure project directories are accessible
+    if [[ ! -w "$PROJECT_ROOT" ]]; then
+        echo -e "${YELLOW}⚠️  Project directory not writable. Attempting to fix...${NC}"
+        if command -v sudo &> /dev/null; then
+            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT" 2>/dev/null || {
+                echo -e "${RED}❌ Cannot fix permissions. Please run: sudo chown -R \$(whoami):\$(whoami) $PROJECT_ROOT${NC}"
+                return 1
+            }
+        else
+            echo -e "${RED}❌ No sudo available and directory not writable${NC}"
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
+# Run permissions check
+fix_permissions || {
+    echo -e "${RED}❌ Permission issues detected. Please fix manually or run with appropriate permissions.${NC}"
+    exit 1
+}
 
 # Detect Docker Compose command
 DOCKER_COMPOSE_CMD=""
@@ -202,9 +233,9 @@ backup_before_update() {
     read -p "Create backup before update? [Y/n]: " DO_BACKUP
     
     if [[ ! "$DO_BACKUP" =~ ^[Nn]$ ]]; then
-        if [[ -f "scripts/backup.sh" ]]; then
+        if [[ -f "$SCRIPT_DIR/backup.sh" ]]; then
             echo -e "${BLUE}📦 Creating backup...${NC}"
-            ./scripts/backup.sh
+            "$SCRIPT_DIR/backup.sh"
         else
             echo -e "${RED}❌ backup.sh script not found${NC}"
             echo -e "${YELLOW}💾 Manual backup recommended${NC}"

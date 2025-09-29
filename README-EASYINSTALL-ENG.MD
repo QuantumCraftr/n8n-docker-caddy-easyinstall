@@ -37,15 +37,22 @@
 - Domain name pointing to your server
 - Ports 80 and 443 open
 
+### 🔧 Automatic Setup Features
+
+✅ **Smart Permission Management** - Scripts automatically detect and fix permission issues
+✅ **Location Independent** - Run scripts from anywhere in the project
+✅ **Error Recovery** - Intelligent handling of common setup problems
+✅ **Robust Path Resolution** - Works regardless of execution directory
+
 ### Installation in 1 command
 
 ```bash
 git clone https://github.com/QuantumCraftr/n8n-docker-caddy-easyinstall
 cd n8n-docker-caddy-easyinstall
-cd scripts
-chmod +x setup.sh
-./setup.sh
+./scripts/setup.sh
 ```
+
+> **Note**: Scripts automatically fix permissions and can be run from anywhere in the project.
 
 The script will guide you through the configuration!
 
@@ -132,14 +139,19 @@ docker compose -f docker-compose-[level].yml pull
 docker compose -f docker-compose-[level].yml up -d
 
 # Backup data
-cd scripts && ./backup.sh
+./scripts/backup.sh
 
 # Update with script
-cd scripts && ./update.sh
+./scripts/update.sh
+
+# Complete cleanup (if needed)
+./scripts/clean_rebuild.sh
 
 # Stop all services
 docker compose -f docker-compose-[level].yml down
 ```
+
+> **✨ New**: All scripts are now **location-independent** and include **automatic permission management**!
 
 ## 🔧 Advanced configuration
 
@@ -190,7 +202,7 @@ With the Pro installation, you have access to:
 
 ```bash
 # Manual backup script
-cd scripts && ./backup.sh
+./scripts/backup.sh
 
 # Schedule automatic backups
 crontab -e
@@ -201,7 +213,7 @@ crontab -e
 
 ```bash
 # Manual update
-cd scripts && ./update.sh
+./scripts/update.sh
 
 # With Watchtower (automatic)
 # Updates are done automatically on Sunday at 4am
@@ -276,6 +288,25 @@ docker stats --no-stream
 - ✅ Firewall configured by default
 - ✅ Automatic updates with Watchtower
 - ✅ Regular backups
+- ✅ **New**: Automatic permission management
+- ✅ **New**: Robust and secure scripts
+
+### 🛡️ Permission Management
+
+All scripts now include **automatic permission detection and fixing**:
+
+- **Auto-executable**: Scripts automatically make themselves and siblings executable
+- **Smart ownership**: Detects and fixes directory ownership issues using `sudo` when needed
+- **Safe fallbacks**: Provides clear instructions if automatic fixes fail
+- **Cross-directory**: Works whether run from project root or `scripts/` directory
+
+```bash
+# These commands now work from anywhere in the project:
+./scripts/setup.sh          # Run initial setup
+./scripts/update.sh         # Update your installation
+./scripts/backup.sh         # Create backups
+./scripts/clean_rebuild.sh  # Nuclear cleanup option
+```
 
 ### Hardening
 

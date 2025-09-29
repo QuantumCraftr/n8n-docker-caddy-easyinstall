@@ -10,8 +10,51 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Configuration
-PROJECT_ROOT=".."
+# Determine script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Auto-fix permissions function
+fix_permissions() {
+    echo -e "${YELLOW}🔧 Checking and fixing permissions...${NC}"
+    
+    # Make all scripts executable
+    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
+    
+    # Ensure project directories are accessible
+    if [[ ! -w "$PROJECT_ROOT" ]]; then
+        echo -e "${YELLOW}⚠️  Project directory not writable. Attempting to fix...${NC}"
+        if command -v sudo &> /dev/null; then
+            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT" 2>/dev/null || {
+                echo -e "${RED}❌ Cannot fix permissions. Please run: sudo chown -R \$(whoami):\$(whoami) $PROJECT_ROOT${NC}"
+                return 1
+            }
+        else
+            echo -e "${RED}❌ No sudo available and directory not writable${NC}"
+            return 1
+        fi
+    fi
+    
+    # Create backup directory if it doesn't exist
+    mkdir -p "$PROJECT_ROOT/backups" 2>/dev/null || {
+        echo -e "${YELLOW}⚠️  Cannot create backup directory. Trying with sudo...${NC}"
+        if command -v sudo &> /dev/null; then
+            sudo mkdir -p "$PROJECT_ROOT/backups"
+            sudo chown $(whoami):$(whoami) "$PROJECT_ROOT/backups"
+        else
+            echo -e "${RED}❌ Cannot create backup directory${NC}"
+            return 1
+        fi
+    }
+    
+    return 0
+}
+
+# Run permissions check
+fix_permissions || {
+    echo -e "${RED}❌ Permission issues detected. Please fix manually or run with appropriate permissions.${NC}"
+    exit 1
+}
 
 # Detect Docker Compose command
 DOCKER_COMPOSE_CMD=""
@@ -26,7 +69,7 @@ fi
 
 # Function to find the active docker-compose file
 find_compose_file() {
-    cd $PROJECT_ROOT
+    cd "$PROJECT_ROOT"
     
     for file in "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
         if [[ -f "$file" ]]; then
@@ -67,7 +110,7 @@ backup_volume() {
     
     if docker volume inspect "$volume_name" &>/dev/null; then
         # Execute from root directory to ensure Docker paths are correct
-        (cd $PROJECT_ROOT && docker run --rm \
+        (cd "$PROJECT_ROOT" && docker run --rm \
             -v "$volume_name":/data:ro \
             -v "$(pwd)/backups":/backup \
             alpine:latest \
@@ -87,7 +130,7 @@ backup_volume() {
 echo -e "${YELLOW}📝 Backing up configuration...${NC}"
 
 # Use sudo for files with permission issues, or skip them
-(cd $PROJECT_ROOT && {
+(cd "$PROJECT_ROOT" && {
     # Create temp directory for accessible files only
     temp_config="/tmp/n8n_config_backup_$$"
     mkdir -p "$temp_config"
@@ -136,7 +179,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Move to root directory for Docker commands
-cd $PROJECT_ROOT
+cd "$PROJECT_ROOT"
 
 # Backup Docker volumes
 backup_volume "n8n_data"
@@ -189,8 +232,8 @@ ls -la "$BACKUP_DIR/${BACKUP_NAME}"* 2>/dev/null || echo "No backup files found"
 echo ""
 echo -e "${GREEN}💡 Tip: Copy these files to external storage${NC}"
 if [[ -f "$BACKUP_DIR/${BACKUP_NAME}_info.txt" ]]; then
-    echo -e "${YELLOW}🔧 Restore: cd scripts && ./restore.sh $BACKUP_NAME${NC}"
+    echo -e "${YELLOW}🔧 Restore: $SCRIPT_DIR/restore.sh $BACKUP_NAME${NC}"
 fi
 
-# Return to root directory to facilitate next steps  
-cd $PROJECT_ROOT
+# Return to root directory to facilitate next steps
+cd "$PROJECT_ROOT"

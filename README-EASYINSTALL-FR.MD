@@ -37,15 +37,22 @@
 - Nom de domaine pointant vers votre serveur
 - Ports 80 et 443 ouverts
 
+### 🔧 Fonctionnalités de configuration automatique
+
+✅ **Gestion intelligente des permissions** - Les scripts détectent et corrigent automatiquement les problèmes de permissions
+✅ **Indépendant de l'emplacement** - Exécutez les scripts depuis n'importe où dans le projet
+✅ **Récupération d'erreur** - Gestion intelligente des problèmes de configuration courants
+✅ **Résolution de chemin robuste** - Fonctionne quel que soit le répertoire d'exécution
+
 ### Installation en 1 commande
 
 ```bash
 git clone https://github.com/QuantumCraftr/n8n-docker-caddy-easyinstall
 cd n8n-docker-caddy-easyinstall
-cd scripts
-chmod +x setup.sh
-./setup.sh
+./scripts/setup.sh
 ```
+
+> **Note**: Les scripts corrigent automatiquement les permissions et peuvent être exécutés depuis n'importe où dans le projet.
 
 Le script vous guidera à travers la configuration !
 
@@ -132,14 +139,19 @@ docker compose -f docker-compose-[niveau].yml pull
 docker compose -f docker-compose-[niveau].yml up -d
 
 # Sauvegarder les données
-cd scripts && ./backup.sh
+./scripts/backup.sh
 
 # Mettre à jour avec le script
-cd scripts && ./update.sh
+./scripts/update.sh
+
+# Nettoyage complet (si nécessaire)
+./scripts/clean_rebuild.sh
 
 # Arrêter tous les services
 docker compose -f docker-compose-[niveau].yml down
 ```
+
+> **✨ Nouveau**: Tous les scripts sont maintenant **indépendants de l'emplacement** et incluent une **gestion automatique des permissions** !
 
 ## 🔧 Configuration avancée
 
@@ -201,7 +213,7 @@ crontab -e
 
 ```bash
 # Mise à jour manuelle
-cd scripts && ./update.sh
+./scripts/update.sh
 
 # Avec Watchtower (automatique)
 # Les mises à jour se font automatiquement le dimanche à 4h
@@ -276,6 +288,25 @@ docker stats --no-stream
 - ✅ Firewall configuré par défaut
 - ✅ Mises à jour automatiques avec Watchtower
 - ✅ Sauvegardes régulières
+- ✅ **Nouveau**: Gestion automatique des permissions
+- ✅ **Nouveau**: Scripts robustes et sécurisés
+
+### 🛡️ Gestion des permissions
+
+Tous les scripts incluent maintenant une **détection et correction automatique des permissions** :
+
+- **Auto-exécutable** : Les scripts se rendent automatiquement exécutables ainsi que leurs pairs
+- **Propriété intelligente** : Détecte et corrige les problèmes de propriété des répertoires avec `sudo` si nécessaire
+- **Alternatives sécurisées** : Fournit des instructions claires si les corrections automatiques échouent
+- **Inter-répertoires** : Fonctionne depuis la racine du projet ou le répertoire `scripts/`
+
+```bash
+# Ces commandes fonctionnent maintenant depuis n'importe où dans le projet :
+./scripts/setup.sh          # Exécuter la configuration initiale
+./scripts/update.sh         # Mettre à jour votre installation
+./scripts/backup.sh         # Créer des sauvegardes
+./scripts/clean_rebuild.sh  # Option de nettoyage nucléaire
+```
 
 ### Durcissement
 

@@ -15,6 +15,40 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# Auto-fix permissions function
+fix_permissions() {
+    echo -e "${YELLOW}🔧 Checking and fixing permissions...${NC}"
+    
+    # Make all scripts executable
+    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
+    
+    # Ensure project directories are accessible
+    if [[ ! -w "$PROJECT_ROOT" ]]; then
+        echo -e "${YELLOW}⚠️  Project directory not writable. Attempting to fix...${NC}"
+        if command -v sudo &> /dev/null; then
+            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT" 2>/dev/null || {
+                echo -e "${RED}❌ Cannot fix permissions. Please run: sudo chown -R \$(whoami):\$(whoami) $PROJECT_ROOT${NC}"
+                return 1
+            }
+        else
+            echo -e "${RED}❌ No sudo available and directory not writable${NC}"
+            return 1
+        fi
+    fi
+    
+    # Create necessary directories
+    mkdir -p "$PROJECT_ROOT/grafana" 2>/dev/null || true
+    mkdir -p "$PROJECT_ROOT/prometheus" 2>/dev/null || true
+    
+    return 0
+}
+
+# Run permissions check
+fix_permissions || {
+    echo -e "${RED}❌ Permission issues detected. Please fix manually or run with appropriate permissions.${NC}"
+    exit 1
+}
+
 # Check if .env file exists and load variables
 if [[ -f "$PROJECT_ROOT/.env" ]]; then
     echo -e "${BLUE}📊 Loading configuration from .env file...${NC}"
