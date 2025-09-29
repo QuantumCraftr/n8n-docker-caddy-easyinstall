@@ -13,35 +13,62 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Auto-fix permissions function
-fix_permissions() {
-    echo -e "${YELLOW}🔧 Checking and fixing permissions...${NC}"
+# This script performs destructive operations - requires sudo
+check_cleanup_permissions() {
+    echo -e "${RED}⚠️  WARNING: This script performs DESTRUCTIVE operations!${NC}"
+    echo -e "${YELLOW}This will delete containers, volumes, and configuration files.${NC}"
+    echo ""
     
-    # Make all scripts executable
-    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
+    # Check if running with sufficient privileges
+    local needs_sudo=false
+    local reasons=()
     
-    # Ensure project directories are accessible
-    if [[ ! -w "$PROJECT_ROOT" ]]; then
-        echo -e "${YELLOW}⚠️  Project directory not writable. Attempting to fix...${NC}"
-        if command -v sudo &> /dev/null; then
-            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT" 2>/dev/null || {
-                echo -e "${RED}❌ Cannot fix permissions. Please run: sudo chown -R \$(whoami):\$(whoami) $PROJECT_ROOT${NC}"
-                return 1
-            }
-        else
-            echo -e "${RED}❌ No sudo available and directory not writable${NC}"
-            return 1
+    # Check Docker access
+    if ! docker info &>/dev/null 2>&1; then
+        if ! groups | grep -q docker; then
+            needs_sudo=true
+            reasons+=("Docker operations require elevated privileges")
         fi
     fi
     
+    # Check file system access
+    if [[ ! -w "$PROJECT_ROOT" ]]; then
+        needs_sudo=true
+        reasons+=("File deletion operations require write access")
+    fi
+    
+    # Check for existing grafana directory (often needs sudo)
+    if [[ -d "$PROJECT_ROOT/grafana" && ! -w "$PROJECT_ROOT/grafana" ]]; then
+        needs_sudo=true
+        reasons+=("Grafana directory deletion requires elevated privileges")
+    fi
+    
+    # If we need sudo, require it for this destructive script
+    if [[ "$needs_sudo" == true ]]; then
+        echo -e "${RED}❌ This script requires elevated permissions:${NC}"
+        for reason in "${reasons[@]}"; do
+            echo -e "   • $reason"
+        done
+        echo ""
+        echo -e "${BLUE}💡 Please run with sudo: ${GREEN}sudo $0 $@${NC}"
+        echo -e "${YELLOW}This ensures all cleanup operations can complete successfully.${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✅ Sufficient permissions detected${NC}"
+    echo ""
+}
+
+# Auto-fix permissions function (minimal for cleanup)
+fix_permissions() {
+    # Make all scripts executable
+    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
     return 0
 }
 
-# Run permissions check
-fix_permissions || {
-    echo -e "${RED}❌ Permission issues detected. Please fix manually or run with appropriate permissions.${NC}"
-    exit 1
-}
+# Run permission check (strict for cleanup)
+check_cleanup_permissions "$@"
+fix_permissions
 
 echo -e "${RED}💥 COMPLETE CLEANUP - STOPPING EVERYTHING${NC}"
 echo "================================================"

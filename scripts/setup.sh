@@ -15,40 +15,68 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Auto-fix permissions function
-fix_permissions() {
-    echo -e "${YELLOW}🔧 Checking and fixing permissions...${NC}"
+# Hybrid permission management: detect needs upfront
+check_initial_permissions() {
+    local needs_sudo=false
+    local reasons=()
     
-    # Make all scripts executable
-    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
-    
-    # Ensure project directories are accessible
+    # Check if we can write to project root
     if [[ ! -w "$PROJECT_ROOT" ]]; then
-        echo -e "${YELLOW}⚠️  Project directory not writable. Attempting to fix...${NC}"
-        if command -v sudo &> /dev/null; then
-            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT" 2>/dev/null || {
-                echo -e "${RED}❌ Cannot fix permissions. Please run: sudo chown -R \$(whoami):\$(whoami) $PROJECT_ROOT${NC}"
-                return 1
-            }
-        else
-            echo -e "${RED}❌ No sudo available and directory not writable${NC}"
-            return 1
+        needs_sudo=true
+        reasons+=("Project directory not writable")
+    fi
+    
+    # Check if we can access Docker (for volume creation)
+    if ! docker info &>/dev/null 2>&1; then
+        if ! groups | grep -q docker; then
+            needs_sudo=true
+            reasons+=("Not in docker group, may need sudo for Docker commands")
         fi
     fi
+    
+    # If we need sudo, inform user and restart with sudo
+    if [[ "$needs_sudo" == true ]]; then
+        echo -e "${YELLOW}⚠️  This script requires elevated permissions:${NC}"
+        for reason in "${reasons[@]}"; do
+            echo -e "   • $reason"
+        done
+        echo ""
+        echo -e "${BLUE}💡 Please run with sudo to ensure smooth execution:${NC}"
+        echo -e "${GREEN}sudo $0 $@${NC}"
+        echo ""
+        read -p "Continue anyway (may fail)? [y/N]: " CONTINUE_ANYWAY
+        if [[ ! "$CONTINUE_ANYWAY" =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}⏹️  Exiting. Please rerun with sudo.${NC}"
+            exit 1
+        fi
+        echo -e "${YELLOW}⚠️  Proceeding without sudo - some operations may fail${NC}"
+    fi
+}
+
+# Auto-fix permissions function (fallback)
+fix_permissions() {
+    # Make all scripts executable
+    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
     
     # Create necessary directories
     mkdir -p "$PROJECT_ROOT/caddy_config" 2>/dev/null || true
     mkdir -p "$PROJECT_ROOT/prometheus" 2>/dev/null || true
     mkdir -p "$PROJECT_ROOT/grafana" 2>/dev/null || true
     
+    # Try to fix ownership if needed
+    if [[ ! -w "$PROJECT_ROOT" ]] && command -v sudo &> /dev/null; then
+        echo -e "${YELLOW}🔧 Attempting to fix permissions...${NC}"
+        sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT" 2>/dev/null || true
+    fi
+    
     return 0
 }
 
-# Run permissions check
-fix_permissions || {
-    echo -e "${RED}❌ Permission issues detected. Please fix manually or run with appropriate permissions.${NC}"
-    exit 1
-}
+# Run initial permission check
+check_initial_permissions "$@"
+
+# Run basic permission fixes
+fix_permissions
 
 echo -e "${BLUE}"
 cat << "EOF"

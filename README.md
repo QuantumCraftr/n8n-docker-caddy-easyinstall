@@ -89,12 +89,24 @@ The **Monitoring** and **Pro** installation levels now include:
 - Ports 80 and 443 open
 - **Recommended**: 2+ GB RAM for monitoring features
 
-### 🔧 Automatic Setup Features
+### 🔧 Intelligent Permission Management
 
-✅ **Smart Permission Management** - Scripts automatically detect and fix permission issues
+✅ **Hybrid Approach** - Scripts detect permission needs upfront and recommend sudo when necessary
+✅ **Smart Detection** - Checks Docker group membership, directory permissions, and file access
+✅ **Clear Guidance** - Provides specific reasons why sudo might be needed
+✅ **Graceful Fallback** - Continues with limited functionality when possible
 ✅ **Location Independent** - Run scripts from anywhere in the project
-✅ **Error Recovery** - Intelligent handling of common setup problems
 ✅ **Robust Path Resolution** - Works regardless of execution directory
+
+### 📋 Permission Requirements by Script
+
+| Script | Typical Usage | Sudo Recommended When |
+|--------|---------------|----------------------|
+| [`setup.sh`](scripts/setup.sh) | `./scripts/setup.sh` | First install, not in docker group |
+| [`update.sh`](scripts/update.sh) | `./scripts/update.sh` | Docker access issues |
+| [`backup.sh`](scripts/backup.sh) | `sudo ./scripts/backup.sh` | For complete backup including all files |
+| [`clean_rebuild.sh`](scripts/clean_rebuild.sh) | `sudo ./scripts/clean_rebuild.sh` | **Always required** (destructive operations) |
+| [`grafana_setup.sh`](scripts/grafana_setup.sh) | `./scripts/grafana_setup.sh` | If grafana directory exists from Docker |
 
 ## 🚀 Services Included
 
@@ -173,12 +185,26 @@ All scripts now include **automatic permission detection and fixing**:
 - **Cross-directory**: Works whether run from project root or `scripts/` directory
 
 ```bash
-# These commands now work from anywhere in the project:
-./scripts/setup.sh      # Run initial setup
-./scripts/update.sh     # Update your installation
-./scripts/backup.sh     # Create backups
-./scripts/clean_rebuild.sh  # Nuclear cleanup option
+# Recommended usage patterns:
+./scripts/setup.sh              # Initial setup (will prompt for sudo if needed)
+./scripts/update.sh             # Update services (usually no sudo needed)
+sudo ./scripts/backup.sh        # Complete backup (recommended with sudo)
+sudo ./scripts/clean_rebuild.sh # Destructive cleanup (always requires sudo)
+./scripts/grafana_setup.sh      # Monitoring setup (sudo if grafana/ exists)
 ```
+
+### 🚨 When to Use Sudo
+
+**Always use sudo:**
+- [`clean_rebuild.sh`](scripts/clean_rebuild.sh) - Deletes Docker volumes and system files
+- [`backup.sh`](scripts/backup.sh) - For complete backup including protected files
+
+**Use sudo if prompted:**
+- [`setup.sh`](scripts/setup.sh) - Script will detect and ask if needed
+- [`grafana_setup.sh`](scripts/grafana_setup.sh) - If Docker created grafana directory
+
+**Usually no sudo needed:**
+- [`update.sh`](scripts/update.sh) - Only updates containers (if in docker group)
 
 ## 🤝 Contributing
 

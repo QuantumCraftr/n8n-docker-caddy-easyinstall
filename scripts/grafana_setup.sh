@@ -36,8 +36,10 @@ fix_permissions() {
         fi
     fi
     
-    # Create necessary directories
-    mkdir -p "$PROJECT_ROOT/grafana" 2>/dev/null || true
+    # Create necessary directories with full structure
+    mkdir -p "$PROJECT_ROOT/grafana/datasources" 2>/dev/null || true
+    mkdir -p "$PROJECT_ROOT/grafana/dashboards" 2>/dev/null || true
+    mkdir -p "$PROJECT_ROOT/grafana/provisioning" 2>/dev/null || true
     mkdir -p "$PROJECT_ROOT/prometheus" 2>/dev/null || true
     
     return 0
@@ -68,34 +70,45 @@ echo -e "${BLUE}📊 Setting up Grafana configuration for domain: ${GREEN}$DOMAI
 # Create directory structure
 echo "Creating directory structure..."
 
-# Check if grafana directory exists and handle permissions
+# Create Grafana directory structure with robust permission handling
+echo -e "${BLUE}📁 Creating Grafana directory structure...${NC}"
+
+# Handle existing grafana directory created by Docker
 if [[ -d "$PROJECT_ROOT/grafana" ]]; then
-    echo -e "${YELLOW}📁 Grafana directory already exists (created by Docker)${NC}"
-    echo -e "${BLUE}🔧 Fixing permissions...${NC}"
+    echo -e "${YELLOW}📁 Grafana directory exists (may be created by Docker)${NC}"
     
-    # Try to fix permissions, use sudo if needed
-    if ! mkdir -p "$PROJECT_ROOT/grafana/datasources" 2>/dev/null; then
-        echo -e "${YELLOW}⚠️  Need elevated permissions to create directories${NC}"
-        read -p "Use sudo to fix permissions? [Y/n]: " USE_SUDO
-        
-        if [[ ! "$USE_SUDO" =~ ^[Nn]$ ]]; then
-            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT/grafana" 2>/dev/null || true
-            sudo mkdir -p "$PROJECT_ROOT/grafana/datasources" 2>/dev/null || true
-            sudo mkdir -p "$PROJECT_ROOT/grafana/dashboards" 2>/dev/null || true
-            sudo mkdir -p "$PROJECT_ROOT/grafana/provisioning" 2>/dev/null || true
-            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT/grafana" 2>/dev/null || true
+    # Check if we can write to it
+    if [[ ! -w "$PROJECT_ROOT/grafana" ]]; then
+        echo -e "${YELLOW}⚠️  Grafana directory not writable. Fixing permissions...${NC}"
+        if command -v sudo &> /dev/null; then
+            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT/grafana" 2>/dev/null || {
+                echo -e "${RED}❌ Cannot fix grafana permissions. Please run manually: sudo chown -R \$(whoami):\$(whoami) $PROJECT_ROOT/grafana${NC}"
+                exit 1
+            }
         else
-            echo -e "${RED}❌ Cannot create directories without proper permissions${NC}"
-            echo -e "${YELLOW}💡 Please run: sudo chown -R \$(whoami):\$(whoami) grafana/${NC}"
+            echo -e "${RED}❌ No sudo available and grafana directory not writable${NC}"
             exit 1
         fi
     fi
-else
-    # Directory doesn't exist, create normally
-    mkdir -p "$PROJECT_ROOT/grafana/datasources"
-    mkdir -p "$PROJECT_ROOT/grafana/dashboards"
-    mkdir -p "$PROJECT_ROOT/grafana/provisioning"
 fi
+
+# Create subdirectories (will work now that permissions are fixed)
+mkdir -p "$PROJECT_ROOT/grafana/datasources" || {
+    echo -e "${RED}❌ Failed to create grafana/datasources directory${NC}"
+    exit 1
+}
+
+mkdir -p "$PROJECT_ROOT/grafana/dashboards" || {
+    echo -e "${RED}❌ Failed to create grafana/dashboards directory${NC}"
+    exit 1
+}
+
+mkdir -p "$PROJECT_ROOT/grafana/provisioning" || {
+    echo -e "${RED}❌ Failed to create grafana/provisioning directory${NC}"
+    exit 1
+}
+
+echo -e "${GREEN}✅ Grafana directory structure created successfully${NC}"
 
 # 1. Prometheus datasource configuration
 cat > "$PROJECT_ROOT/grafana/datasources/prometheus.yml" << 'EOF'

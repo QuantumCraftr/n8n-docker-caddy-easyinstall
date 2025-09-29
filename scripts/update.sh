@@ -14,35 +14,47 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Auto-fix permissions function
-fix_permissions() {
-    echo -e "${YELLOW}🔧 Checking and fixing permissions...${NC}"
+# Hybrid permission management for update operations
+check_update_permissions() {
+    local needs_sudo=false
+    local reasons=()
     
-    # Make all scripts executable
-    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
-    
-    # Ensure project directories are accessible
-    if [[ ! -w "$PROJECT_ROOT" ]]; then
-        echo -e "${YELLOW}⚠️  Project directory not writable. Attempting to fix...${NC}"
-        if command -v sudo &> /dev/null; then
-            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT" 2>/dev/null || {
-                echo -e "${RED}❌ Cannot fix permissions. Please run: sudo chown -R \$(whoami):\$(whoami) $PROJECT_ROOT${NC}"
-                return 1
-            }
-        else
-            echo -e "${RED}❌ No sudo available and directory not writable${NC}"
-            return 1
+    # Check Docker access
+    if ! docker info &>/dev/null 2>&1; then
+        if ! groups | grep -q docker; then
+            needs_sudo=true
+            reasons+=("Not in docker group - Docker commands may need sudo")
         fi
     fi
+    
+    # Update usually doesn't need file system writes, but check backup creation
+    if [[ ! -w "$PROJECT_ROOT" ]]; then
+        echo -e "${YELLOW}⚠️  Limited file system access - backup creation may fail${NC}"
+    fi
+    
+    # If we need sudo, inform user
+    if [[ "$needs_sudo" == true ]]; then
+        echo -e "${YELLOW}⚠️  This script may require elevated permissions:${NC}"
+        for reason in "${reasons[@]}"; do
+            echo -e "   • $reason"
+        done
+        echo ""
+        echo -e "${BLUE}💡 If Docker commands fail, try: ${GREEN}sudo $0 $@${NC}"
+        echo ""
+    fi
+}
+
+# Auto-fix permissions function (minimal for updates)
+fix_permissions() {
+    # Make all scripts executable
+    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
     
     return 0
 }
 
-# Run permissions check
-fix_permissions || {
-    echo -e "${RED}❌ Permission issues detected. Please fix manually or run with appropriate permissions.${NC}"
-    exit 1
-}
+# Run permission check
+check_update_permissions "$@"
+fix_permissions
 
 # Detect Docker Compose command
 DOCKER_COMPOSE_CMD=""

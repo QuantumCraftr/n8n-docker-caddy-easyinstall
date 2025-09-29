@@ -14,47 +14,68 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Auto-fix permissions function
-fix_permissions() {
-    echo -e "${YELLOW}🔧 Checking and fixing permissions...${NC}"
+# Hybrid permission management for backup operations
+check_backup_permissions() {
+    local needs_sudo=false
+    local reasons=()
     
-    # Make all scripts executable
-    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
-    
-    # Ensure project directories are accessible
-    if [[ ! -w "$PROJECT_ROOT" ]]; then
-        echo -e "${YELLOW}⚠️  Project directory not writable. Attempting to fix...${NC}"
-        if command -v sudo &> /dev/null; then
-            sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT" 2>/dev/null || {
-                echo -e "${RED}❌ Cannot fix permissions. Please run: sudo chown -R \$(whoami):\$(whoami) $PROJECT_ROOT${NC}"
-                return 1
-            }
-        else
-            echo -e "${RED}❌ No sudo available and directory not writable${NC}"
-            return 1
+    # Check Docker access (required for volume backups)
+    if ! docker info &>/dev/null 2>&1; then
+        if ! groups | grep -q docker; then
+            needs_sudo=true
+            reasons+=("Not in docker group - Docker volume backup needs sudo")
         fi
     fi
     
-    # Create backup directory if it doesn't exist
+    # Check if we can create backup directory
+    if [[ ! -w "$PROJECT_ROOT" ]]; then
+        needs_sudo=true
+        reasons+=("Cannot write to project directory - backup creation needs sudo")
+    fi
+    
+    # Check if grafana directory exists and is accessible (common issue)
+    if [[ -d "$PROJECT_ROOT/grafana" && ! -r "$PROJECT_ROOT/grafana" ]]; then
+        echo -e "${YELLOW}⚠️  Grafana directory exists but not readable - may need sudo for complete backup${NC}"
+    fi
+    
+    # If we need sudo, inform user
+    if [[ "$needs_sudo" == true ]]; then
+        echo -e "${YELLOW}⚠️  This script requires elevated permissions:${NC}"
+        for reason in "${reasons[@]}"; do
+            echo -e "   • $reason"
+        done
+        echo ""
+        echo -e "${BLUE}💡 For complete backup, run with: ${GREEN}sudo $0 $@${NC}"
+        echo ""
+        read -p "Continue with limited backup? [y/N]: " CONTINUE_LIMITED
+        if [[ ! "$CONTINUE_LIMITED" =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}⏹️  Exiting. Please rerun with sudo for complete backup.${NC}"
+            exit 1
+        fi
+        echo -e "${YELLOW}⚠️  Proceeding with limited backup - some files may be skipped${NC}"
+    fi
+}
+
+# Auto-fix permissions function (for backup)
+fix_permissions() {
+    # Make all scripts executable
+    chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
+    
+    # Create backup directory if possible
     mkdir -p "$PROJECT_ROOT/backups" 2>/dev/null || {
-        echo -e "${YELLOW}⚠️  Cannot create backup directory. Trying with sudo...${NC}"
         if command -v sudo &> /dev/null; then
+            echo -e "${YELLOW}🔧 Creating backup directory with sudo...${NC}"
             sudo mkdir -p "$PROJECT_ROOT/backups"
-            sudo chown $(whoami):$(whoami) "$PROJECT_ROOT/backups"
-        else
-            echo -e "${RED}❌ Cannot create backup directory${NC}"
-            return 1
+            sudo chown $(whoami):$(whoami) "$PROJECT_ROOT/backups" 2>/dev/null || true
         fi
     }
     
     return 0
 }
 
-# Run permissions check
-fix_permissions || {
-    echo -e "${RED}❌ Permission issues detected. Please fix manually or run with appropriate permissions.${NC}"
-    exit 1
-}
+# Run permission check
+check_backup_permissions "$@"
+fix_permissions
 
 # Detect Docker Compose command
 DOCKER_COMPOSE_CMD=""
