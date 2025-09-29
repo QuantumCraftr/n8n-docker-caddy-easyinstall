@@ -7,12 +7,13 @@ set -e
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Configuration
 PROJECT_ROOT=".."
 
-# Detect Docker Compose command (same logic as setup.sh)
+# Detect Docker Compose command
 DOCKER_COMPOSE_CMD=""
 if command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
     DOCKER_COMPOSE_CMD="docker compose"
@@ -22,6 +23,32 @@ else
     echo -e "${RED}❌ Docker Compose not found${NC}"
     exit 1
 fi
+
+# Function to find the active docker-compose file
+find_compose_file() {
+    cd $PROJECT_ROOT
+    
+    for file in "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
+        if [[ -f "$file" ]]; then
+            # Test if this compose file has running containers
+            if $DOCKER_COMPOSE_CMD -f "$file" ps --services --filter "status=running" 2>/dev/null | grep -q .; then
+                echo "$file"
+                return 0
+            fi
+        fi
+    done
+    
+    # Fallback: check which files exist
+    for file in "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
+        if [[ -f "$file" ]]; then
+            echo "$file"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
 BACKUP_DIR="$PROJECT_ROOT/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_NAME="n8n-backup-$DATE"
@@ -34,7 +61,7 @@ mkdir -p "$BACKUP_DIR"
 # Docker volume backup function
 backup_volume() {
     local volume_name=$1
-    local backup_file="$BACKUP_DIR/${BACKUP_NAME}_${volume_name}.tar.gz"
+    local backup_file="${BACKUP_NAME}_${volume_name}.tar.gz"
     
     echo -e "${YELLOW}📦 Backing up volume $volume_name...${NC}"
     
@@ -44,34 +71,83 @@ backup_volume() {
             -v "$volume_name":/data:ro \
             -v "$(pwd)/backups":/backup \
             alpine:latest \
-            tar czf "/backup/${BACKUP_NAME}_${volume_name}.tar.gz" -C /data .)
+            tar czf "/backup/$backup_file" -C /data .)
         
-        echo -e "${GREEN}✅ Volume $volume_name backed up${NC}"
+        if [[ -f "$BACKUP_DIR/$backup_file" ]]; then
+            echo -e "${GREEN}✅ Volume $volume_name backed up${NC}"
+        else
+            echo -e "${RED}❌ Failed to backup volume $volume_name${NC}"
+        fi
     else
-        echo -e "${RED}❌ Volume $volume_name not found${NC}"
+        echo -e "${YELLOW}⚠️  Volume $volume_name not found${NC}"
     fi
 }
 
-# Backup configuration
+# Backup configuration with permission handling
 echo -e "${YELLOW}📝 Backing up configuration...${NC}"
-(cd $PROJECT_ROOT && tar czf "backups/${BACKUP_NAME}_config.tar.gz" \
-    --exclude='backups' \
-    --exclude='.git' \
-    --exclude='*.log' \
-    .)
+
+# Use sudo for files with permission issues, or skip them
+(cd $PROJECT_ROOT && {
+    # Create temp directory for accessible files only
+    temp_config="/tmp/n8n_config_backup_$$"
+    mkdir -p "$temp_config"
+    
+    # Copy files we can access
+    cp -r caddy_config "$temp_config/" 2>/dev/null || {
+        echo -e "${YELLOW}⚠️  caddy_config has permission issues, using Docker to backup...${NC}"
+        if docker ps -q | head -1 | xargs -I {} docker run --rm \
+            -v "$(pwd)/caddy_config":/source:ro \
+            -v "$temp_config":/dest \
+            alpine:latest \
+            cp -r /source /dest/caddy_config 2>/dev/null; then
+            echo -e "${GREEN}✅ caddy_config backed up via Docker${NC}"
+        else
+            echo -e "${RED}❌ Could not backup caddy_config${NC}"
+        fi
+    }
+    
+    # Copy other config files
+    [[ -f .env ]] && cp .env "$temp_config/"
+    [[ -f credentials.txt ]] && cp credentials.txt "$temp_config/"
+    [[ -f docker-compose*.yml ]] && cp docker-compose*.yml "$temp_config/" 2>/dev/null || true
+    [[ -d prometheus ]] && cp -r prometheus "$temp_config/" 2>/dev/null || true
+    [[ -d grafana ]] && cp -r grafana "$temp_config/" 2>/dev/null || {
+        echo -e "${YELLOW}⚠️  grafana directory has permission issues, skipping...${NC}"
+    }
+    
+    # Create archive from temp directory
+    tar czf "backups/${BACKUP_NAME}_config.tar.gz" -C "$temp_config" . 2>/dev/null
+    
+    # Cleanup
+    rm -rf "$temp_config"
+    
+    if [[ -f "backups/${BACKUP_NAME}_config.tar.gz" ]]; then
+        echo -e "${GREEN}✅ Configuration backed up${NC}"
+    else
+        echo -e "${RED}❌ Configuration backup failed${NC}"
+    fi
+})
+
+# Find compose file
+COMPOSE_FILE=$(find_compose_file)
+if [[ $? -ne 0 ]]; then
+    echo -e "${YELLOW}⚠️  No active docker-compose file found, backing up all volumes...${NC}"
+    COMPOSE_FILE=""
+fi
+
+# Move to root directory for Docker commands
+cd $PROJECT_ROOT
 
 # Backup Docker volumes
-# Execute Docker commands from root directory
-cd $PROJECT_ROOT
 backup_volume "n8n_data"
-backup_volume "flowise_data"
+backup_volume "flowise_data" 
 backup_volume "caddy_data"
 
 # Backup optional volumes if they exist
-backup_volume "grafana_data" 2>/dev/null || true
-backup_volume "prometheus_data" 2>/dev/null || true
-backup_volume "portainer_data" 2>/dev/null || true
-backup_volume "uptime_data" 2>/dev/null || true
+backup_volume "grafana_data"
+backup_volume "prometheus_data"
+backup_volume "portainer_data"
+backup_volume "uptime_data"
 
 # Create backup information file
 cat > "$BACKUP_DIR/${BACKUP_NAME}_info.txt" << EOF
@@ -79,17 +155,24 @@ cat > "$BACKUP_DIR/${BACKUP_NAME}_info.txt" << EOF
 
 📅 Date: $(date)
 🖥️  Hostname: $(hostname)
-📋 Compose file: $([ -f docker-compose.yml ] && echo "docker-compose.yml" || echo "Not found")
+📋 Compose file: ${COMPOSE_FILE:-"Not detected"}
 🐳 Active services:
-$($DOCKER_COMPOSE_CMD ps --format "- {{.Name}}: {{.Status}}" 2>/dev/null || echo "Unable to list services")
+$(if [[ -n "$COMPOSE_FILE" ]]; then 
+    $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps --format "- {{.Name}}: {{.Status}}" 2>/dev/null || echo "Unable to list services"
+else
+    echo "No compose file detected"
+fi)
 
 📦 Backed up volumes:
-$(ls -1 $BACKUP_DIR/${BACKUP_NAME}_*.tar.gz | sed 's|.*/||' | sed 's/^/- /')
+$(ls -1 $BACKUP_DIR/${BACKUP_NAME}_*.tar.gz 2>/dev/null | sed 's|.*/||' | sed 's/^/- /' || echo "No volume backups found")
 
-💾 Total size: $(du -sh $BACKUP_DIR/${BACKUP_NAME}_* | awk '{print $1}' | paste -sd+ | bc 2>/dev/null || echo "N/A")
+💾 Total size: $(du -sh $BACKUP_DIR/${BACKUP_NAME}_* 2>/dev/null | awk '{total += $1} END {print total "B"}' || echo "N/A")
 
 🔧 To restore:
 cd scripts && ./restore.sh $BACKUP_NAME
+
+⚠️  Note: Some files may have been skipped due to permission issues.
+Use 'sudo' if needed for complete restoration.
 
 EOF
 
@@ -99,12 +182,15 @@ find "$BACKUP_DIR" -name "n8n-backup-*" -type f -mtime +7 -delete 2>/dev/null ||
 
 # Summary
 echo -e "${GREEN}✅ Backup completed!${NC}"
+echo ""
 echo -e "${YELLOW}📁 Files created:${NC}"
-ls -la "$BACKUP_DIR/${BACKUP_NAME}"*
+ls -la "$BACKUP_DIR/${BACKUP_NAME}"* 2>/dev/null || echo "No backup files found"
 
 echo ""
 echo -e "${GREEN}💡 Tip: Copy these files to external storage${NC}"
-echo -e "${YELLOW}🔧 Restore: cd scripts && ./restore.sh $BACKUP_NAME${NC}"
+if [[ -f "$BACKUP_DIR/${BACKUP_NAME}_info.txt" ]]; then
+    echo -e "${YELLOW}🔧 Restore: cd scripts && ./restore.sh $BACKUP_NAME${NC}"
+fi
 
-# Return to root directory to facilitate next steps
+# Return to root directory to facilitate next steps  
 cd $PROJECT_ROOT

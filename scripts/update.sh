@@ -13,7 +13,7 @@ NC='\033[0m'
 # Path to parent directory (project root)
 PROJECT_ROOT=".."
 
-# Detect Docker Compose command (same logic as setup.sh)
+# Detect Docker Compose command
 DOCKER_COMPOSE_CMD=""
 if command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
     DOCKER_COMPOSE_CMD="docker compose"
@@ -24,6 +24,32 @@ else
     exit 1
 fi
 
+# Function to find the active docker-compose file
+find_compose_file() {
+    cd $PROJECT_ROOT
+    
+    # Check for active containers to determine which compose file is in use
+    for file in "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
+        if [[ -f "$file" ]]; then
+            # Test if this compose file has running containers
+            if $DOCKER_COMPOSE_CMD -f "$file" ps --services --filter "status=running" 2>/dev/null | grep -q .; then
+                echo "$file"
+                return 0
+            fi
+        fi
+    done
+    
+    # Fallback: check which files exist
+    for file in "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
+        if [[ -f "$file" ]]; then
+            echo "$file"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
 echo -e "${BLUE}🔄 n8n-docker-caddy Update${NC}"
 echo ""
 
@@ -32,20 +58,20 @@ show_current_versions() {
     echo -e "${YELLOW}📋 Current versions:${NC}"
     
     # n8n
-    if $DOCKER_COMPOSE_CMD ps n8n 2>/dev/null | grep -q "Up"; then
-        N8N_VERSION=$($DOCKER_COMPOSE_CMD exec -T n8n n8n --version 2>/dev/null || echo "N/A")
+    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps n8n 2>/dev/null | grep -q "Up"; then
+        N8N_VERSION=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T n8n n8n --version 2>/dev/null || echo "N/A")
         echo -e "  n8n: ${GREEN}$N8N_VERSION${NC}"
     fi
     
     # Caddy
-    if $DOCKER_COMPOSE_CMD ps caddy 2>/dev/null | grep -q "Up"; then
-        CADDY_VERSION=$($DOCKER_COMPOSE_CMD exec -T caddy caddy version 2>/dev/null || echo "N/A")
+    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps caddy 2>/dev/null | grep -q "Up"; then
+        CADDY_VERSION=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T caddy caddy version 2>/dev/null || echo "N/A")
         echo -e "  Caddy: ${GREEN}$CADDY_VERSION${NC}"
     fi
     
     # Flowise
-    if $DOCKER_COMPOSE_CMD ps flowise 2>/dev/null | grep -q "Up"; then
-        echo -e "  Flowise: ${GREEN}$($DOCKER_COMPOSE_CMD images flowise --format "{{.Tag}}")${NC}"
+    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps flowise 2>/dev/null | grep -q "Up"; then
+        echo -e "  Flowise: ${GREEN}$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" images flowise --format "{{.Tag}}")${NC}"
     fi
     
     echo ""
@@ -74,8 +100,8 @@ update_choice() {
 update_n8n_only() {
     echo -e "${BLUE}🚀 Quick n8n update...${NC}"
     
-    $DOCKER_COMPOSE_CMD pull n8n
-    $DOCKER_COMPOSE_CMD up -d n8n
+    $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" pull n8n
+    $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" up -d n8n
     
     echo -e "${GREEN}✅ n8n updated!${NC}"
 }
@@ -86,11 +112,11 @@ update_all() {
     
     # Download new images
     echo -e "${YELLOW}⬇️ Downloading new images...${NC}"
-    $DOCKER_COMPOSE_CMD pull
+    $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" pull
     
     # Restart services
     echo -e "${YELLOW}🔄 Restarting services...${NC}"
-    $DOCKER_COMPOSE_CMD up -d
+    $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" up -d
     
     echo -e "${GREEN}✅ All services updated!${NC}"
 }
@@ -108,15 +134,15 @@ update_recreate() {
     
     # Download new images
     echo -e "${YELLOW}⬇️ Downloading new images...${NC}"
-    $DOCKER_COMPOSE_CMD pull
+    $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" pull
     
     # Stop services
     echo -e "${YELLOW}⏹️ Stopping services...${NC}"
-    $DOCKER_COMPOSE_CMD down
+    $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" down
     
     # Restart with recreation
     echo -e "${YELLOW}🚀 Recreating containers...${NC}"
-    $DOCKER_COMPOSE_CMD up -d --force-recreate
+    $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" up -d --force-recreate
     
     echo -e "${GREEN}✅ Complete update finished!${NC}"
 }
@@ -144,22 +170,24 @@ check_status() {
     sleep 5  # Wait for services to start
     
     echo -e "${YELLOW}📊 Containers status:${NC}"
-    $DOCKER_COMPOSE_CMD ps
+    $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps
     
     echo ""
     echo -e "${YELLOW}🌐 Connectivity test:${NC}"
     
     # Test n8n
     if command -v curl &> /dev/null; then
-        DOMAIN=$(grep DOMAIN_NAME $PROJECT_ROOT/.env | cut -d '=' -f2)
-        SUBDOMAIN=$(grep SUBDOMAIN $PROJECT_ROOT/.env | cut -d '=' -f2)
-        
-        if [[ -n "$DOMAIN" && -n "$SUBDOMAIN" ]]; then
-            N8N_URL="https://$SUBDOMAIN.$DOMAIN"
-            if curl -s -o /dev/null -w "%{http_code}" "$N8N_URL" | grep -q "200\|401\|302"; then
-                echo -e "  n8n: ${GREEN}✅ Accessible${NC}"
-            else
-                echo -e "  n8n: ${RED}❌ Not accessible${NC}"
+        if [[ -f "$PROJECT_ROOT/.env" ]]; then
+            DOMAIN=$(grep DOMAIN_NAME $PROJECT_ROOT/.env | cut -d '=' -f2)
+            SUBDOMAIN=$(grep SUBDOMAIN $PROJECT_ROOT/.env | cut -d '=' -f2)
+            
+            if [[ -n "$DOMAIN" && -n "$SUBDOMAIN" ]]; then
+                N8N_URL="https://$SUBDOMAIN.$DOMAIN"
+                if curl -s -o /dev/null -w "%{http_code}" "$N8N_URL" | grep -q "200\|401\|302"; then
+                    echo -e "  n8n: ${GREEN}✅ Accessible${NC}"
+                else
+                    echo -e "  n8n: ${RED}❌ Not accessible${NC}"
+                fi
             fi
         fi
     fi
@@ -189,12 +217,17 @@ backup_before_update() {
 
 # Main program
 main() {
-    # Check that we are in the right directory
-    if [[ ! -f "$PROJECT_ROOT/docker-compose.yml" ]]; then
-        echo -e "${RED}❌ docker-compose.yml file not found${NC}"
-        echo -e "${YELLOW}💡 Run this script from the scripts folder of n8n-docker-caddy${NC}"
+    # Check that we are in the right directory and find compose file
+    COMPOSE_FILE=$(find_compose_file)
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}❌ No docker-compose file found${NC}"
+        echo -e "${YELLOW}💡 Available files in $PROJECT_ROOT:${NC}"
+        ls -la "$PROJECT_ROOT"/docker-compose*.yml 2>/dev/null || echo "No docker-compose files found"
+        echo -e "${YELLOW}💡 Run setup.sh first to create the configuration${NC}"
         exit 1
     fi
+    
+    echo -e "${GREEN}📁 Using compose file: $COMPOSE_FILE${NC}"
     
     # Move to root directory for Docker commands
     cd $PROJECT_ROOT
@@ -227,7 +260,7 @@ main() {
     echo -e "${YELLOW}💡 Post-update tips:${NC}"
     echo "  • Check that your n8n workflows work"
     echo "  • Test Flowise access"
-    echo "  • Monitor logs: $DOCKER_COMPOSE_CMD logs -f"
+    echo "  • Monitor logs: $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE logs -f"
     
     if [[ -f "$PROJECT_ROOT/credentials.txt" ]]; then
         echo "  • Your credentials are in: credentials.txt"
@@ -239,6 +272,14 @@ main() {
 
 # Check if launched with arguments
 if [[ $# -gt 0 ]]; then
+    # Find compose file for command line usage
+    COMPOSE_FILE=$(find_compose_file)
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}❌ No docker-compose file found${NC}"
+        exit 1
+    fi
+    cd $PROJECT_ROOT
+    
     case $1 in
         --n8n-only) update_n8n_only ;;
         --all) update_all ;;
