@@ -70,9 +70,9 @@ fi
 # Function to find the active docker-compose file
 find_compose_file() {
     cd $PROJECT_ROOT
-    
+
     # Check for active containers to determine which compose file is in use
-    for file in "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
+    for file in "docker-compose-homepage.yml" "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
         if [[ -f "$file" ]]; then
             # Test if this compose file has running containers
             if $DOCKER_COMPOSE_CMD -f "$file" ps --services --filter "status=running" 2>/dev/null | grep -q .; then
@@ -81,15 +81,15 @@ find_compose_file() {
             fi
         fi
     done
-    
+
     # Fallback: check which files exist
-    for file in "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
+    for file in "docker-compose-homepage.yml" "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
         if [[ -f "$file" ]]; then
             echo "$file"
             return 0
         fi
     done
-    
+
     return 1
 }
 

@@ -96,7 +96,7 @@ done
 
 # 3. Attempt to stop with docker-compose in different directories
 echo -e "${YELLOW}🔍 Searching for active docker-compose...${NC}"
-for compose_file in "docker-compose.yml" "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml"; do
+for compose_file in "docker-compose.yml" "docker-compose-homepage.yml" "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml"; do
     if [ -f "$PROJECT_ROOT/$compose_file" ]; then
         echo "📁 Attempting to stop: $compose_file"
         docker compose -f "$PROJECT_ROOT/$compose_file" down --remove-orphans 2>/dev/null || true
@@ -110,7 +110,7 @@ read -p "Continue? [y/N]: " CONFIRM_NUCLEAR
 if [[ "$CONFIRM_NUCLEAR" =~ ^[Yy]$ ]]; then
     
     # Delete all volumes with suspicious names
-    docker volume ls -q | grep -E "(caddy|n8n|flowise|grafana|prometheus|portainer|uptime)" | while read volume; do
+    docker volume ls -q | grep -E "(caddy|n8n|flowise|grafana|prometheus|portainer|uptime|homepage|diun)" | while read volume; do
         echo "💥 Deleting volume: $volume"
         docker volume rm "$volume" --force 2>/dev/null || true
     done

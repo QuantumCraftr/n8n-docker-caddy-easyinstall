@@ -27,7 +27,8 @@ This is a community fork of the original n8n-docker-caddy project, enhanced with
 🔧 **Multiple Deployment Options**
 - **Basic**: n8n + Flowise + Caddy
 - **Monitoring**: + Prometheus + Grafana + Node Exporter
-- **Pro**: + Portainer + Watchtower + Uptime Kuma
+- **Pro**: + Portainer + Diun + Uptime Kuma
+- **Homepage** ⭐ (Recommended): Basic + Homepage Dashboard + Diun
 
 🛡️ **Enhanced Security**
 - Authentication enabled by default
@@ -108,13 +109,15 @@ chmod +x scripts/*.sh # Make scripts executable for the first time
 ```
 
 > **The setup script will guide you through:**
-> - Choosing your installation type (Basic/Monitoring/Pro)
+> - Choosing your installation type (Basic/Monitoring/Pro/Homepage)
 > - Configuring your domain and subdomains
 > - Setting up SSL certificates
 > - Generating secure passwords
 > - Optional advanced monitoring setup with beautiful dashboards
 >
 > Scripts automatically manage further permissions and can be run from anywhere in the project after the initial `chmod`.
+>
+> ⭐ **New**: Homepage option provides a modern, lightweight dashboard with Docker monitoring and image update notifications via Diun.
 
 ## 📊 Monitoring Features
 
@@ -180,12 +183,13 @@ For a complete and detailed guide, please refer to:
 | **n8n** | Workflow automation | All | ✅ |
 | **Flowise** | AI chatbots | All | ✅ |
 | **Caddy** | Reverse proxy + SSL | All | - |
+| **Homepage** | Dashboard + monitoring | Homepage | 🏠 |
+| **Diun** | Docker image update notifier | Homepage + Pro | 🔔 |
 | **Prometheus** | Metrics collection | Monitoring + Pro | ✅ |
 | **Grafana** | Monitoring dashboards | Monitoring + Pro | 📊 |
 | **Node Exporter** | System metrics | Monitoring + Pro | ✅ |
 | **cAdvisor** | Container metrics | Monitoring + Pro | ✅ |
 | **Portainer** | Docker management | Pro only | 🐳 |
-| **Watchtower** | Auto updates | Pro only | - |
 | **Uptime Kuma** | Service monitoring | Pro only | 📈 |
 
 ## 📋 Quick Commands

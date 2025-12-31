@@ -57,18 +57,19 @@ check_initial_permissions() {
 fix_permissions() {
     # Make all scripts executable
     chmod +x "$SCRIPT_DIR"/*.sh 2>/dev/null || true
-    
+
     # Create necessary directories
     mkdir -p "$PROJECT_ROOT/caddy_config" 2>/dev/null || true
     mkdir -p "$PROJECT_ROOT/prometheus" 2>/dev/null || true
     mkdir -p "$PROJECT_ROOT/grafana" 2>/dev/null || true
-    
+    mkdir -p "$PROJECT_ROOT/homepage" 2>/dev/null || true
+
     # Try to fix ownership if needed
     if [[ ! -w "$PROJECT_ROOT" ]] && command -v sudo &> /dev/null; then
         echo -e "${YELLOW}🔧 Attempting to fix permissions...${NC}"
         sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT" 2>/dev/null || true
     fi
-    
+
     return 0
 }
 
@@ -126,14 +127,16 @@ echo ""
 echo -e "${YELLOW}🛠️ What type of installation do you want?${NC}"
 echo "1) 🚀 Basic (n8n + Caddy + Flowise)"
 echo "2) 📊 Complete (+ Monitoring Prometheus/Grafana)"
-echo "3) 🔧 Pro (+ Portainer + Watchtower + Uptime Kuma)"
+echo "3) 🔧 Pro (+ Portainer + Diun + Uptime Kuma)"
+echo "4) 🏠 Homepage (Recommended - Basic + Homepage Dashboard + Diun)"
 echo ""
-read -p "Your choice [1-3]: " INSTALL_TYPE
+read -p "Your choice [1-4]: " INSTALL_TYPE
 
 case $INSTALL_TYPE in
     1) INSTALL_LEVEL="basic" ;;
     2) INSTALL_LEVEL="monitoring" ;;
     3) INSTALL_LEVEL="pro" ;;
+    4) INSTALL_LEVEL="homepage" ;;
     *) echo -e "${RED}❌ Invalid choice${NC}"; exit 1 ;;
 esac
 
@@ -158,7 +161,12 @@ N8N_SUBDOMAIN=${N8N_SUBDOMAIN:-automation}
 read -p "Subdomain for Flowise [flowise]: " FLOWISE_SUBDOMAIN
 FLOWISE_SUBDOMAIN=${FLOWISE_SUBDOMAIN:-flowise}
 
-if [[ "$INSTALL_LEVEL" != "basic" ]]; then
+if [[ "$INSTALL_LEVEL" == "homepage" ]]; then
+    read -p "Subdomain for Homepage [dashboard]: " HOMEPAGE_SUBDOMAIN
+    HOMEPAGE_SUBDOMAIN=${HOMEPAGE_SUBDOMAIN:-dashboard}
+fi
+
+if [[ "$INSTALL_LEVEL" != "basic" && "$INSTALL_LEVEL" != "homepage" ]]; then
     read -p "Subdomain for Grafana [monitoring]: " GRAFANA_SUBDOMAIN
     GRAFANA_SUBDOMAIN=${GRAFANA_SUBDOMAIN:-monitoring}
 fi
@@ -166,7 +174,7 @@ fi
 if [[ "$INSTALL_LEVEL" == "pro" ]]; then
     read -p "Subdomain for Portainer [portainer]: " PORTAINER_SUBDOMAIN
     PORTAINER_SUBDOMAIN=${PORTAINER_SUBDOMAIN:-portainer}
-    
+
     read -p "Subdomain for Uptime Kuma [uptime]: " UPTIME_SUBDOMAIN
     UPTIME_SUBDOMAIN=${UPTIME_SUBDOMAIN:-uptime}
 fi
@@ -205,7 +213,11 @@ echo -e "🌐 Domain: ${GREEN}$DOMAIN_NAME${NC}"
 echo -e "🚀 n8n: ${GREEN}https://$N8N_SUBDOMAIN.$DOMAIN_NAME${NC}"
 echo -e "🤖 Flowise: ${GREEN}https://$FLOWISE_SUBDOMAIN.$DOMAIN_NAME${NC}"
 
-if [[ "$INSTALL_LEVEL" != "basic" ]]; then
+if [[ "$INSTALL_LEVEL" == "homepage" ]]; then
+    echo -e "🏠 Homepage: ${GREEN}https://$HOMEPAGE_SUBDOMAIN.$DOMAIN_NAME${NC}"
+fi
+
+if [[ "$INSTALL_LEVEL" != "basic" && "$INSTALL_LEVEL" != "homepage" ]]; then
     echo -e "📊 Grafana: ${GREEN}https://$GRAFANA_SUBDOMAIN.$DOMAIN_NAME${NC}"
 fi
 
@@ -276,7 +288,16 @@ $FLOWISE_SUBDOMAIN.$DOMAIN_NAME {
 EOF
 
 # Add services according to installation level
-if [[ "$INSTALL_LEVEL" != "basic" ]]; then
+if [[ "$INSTALL_LEVEL" == "homepage" ]]; then
+    cat >> "$PROJECT_ROOT/caddy_config/Caddyfile" << EOF
+
+$HOMEPAGE_SUBDOMAIN.$DOMAIN_NAME {
+    reverse_proxy homepage:3000
+}
+EOF
+fi
+
+if [[ "$INSTALL_LEVEL" != "basic" && "$INSTALL_LEVEL" != "homepage" ]]; then
     cat >> "$PROJECT_ROOT/caddy_config/Caddyfile" << EOF
 
 $GRAFANA_SUBDOMAIN.$DOMAIN_NAME {
@@ -313,6 +334,9 @@ case $INSTALL_LEVEL in
     "pro")
         COMPOSE_FILE="docker-compose-pro.yml"
         ;;
+    "homepage")
+        COMPOSE_FILE="docker-compose-homepage.yml"
+        ;;
 esac
 
 # Create Docker volumes
@@ -332,7 +356,12 @@ docker volume create caddy_data 2>/dev/null || true
 docker volume create n8n_data 2>/dev/null || true
 docker volume create flowise_data 2>/dev/null || true
 
-if [[ "$INSTALL_LEVEL" != "basic" ]]; then
+if [[ "$INSTALL_LEVEL" == "homepage" ]]; then
+    docker volume create homepage_data 2>/dev/null || true
+    docker volume create diun_data 2>/dev/null || true
+fi
+
+if [[ "$INSTALL_LEVEL" != "basic" && "$INSTALL_LEVEL" != "homepage" ]]; then
     docker volume create grafana_data 2>/dev/null || true
     docker volume create prometheus_data 2>/dev/null || true
 fi
@@ -340,6 +369,7 @@ fi
 if [[ "$INSTALL_LEVEL" == "pro" ]]; then
     docker volume create portainer_data 2>/dev/null || true
     docker volume create uptime_data 2>/dev/null || true
+    docker volume create diun_data 2>/dev/null || true
 fi
 
 echo -e "${GREEN}✅ Volumes created${NC}"
@@ -370,7 +400,12 @@ CREDENTIALS_CONTENT="🔐 YOUR n8n INSTALLATION CREDENTIALS
 - Flowise: https://$FLOWISE_SUBDOMAIN.$DOMAIN_NAME"
 
 # Add conditional URLs
-if [[ "$INSTALL_LEVEL" != "basic" ]]; then
+if [[ "$INSTALL_LEVEL" == "homepage" ]]; then
+    CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
+- Homepage: https://$HOMEPAGE_SUBDOMAIN.$DOMAIN_NAME"
+fi
+
+if [[ "$INSTALL_LEVEL" != "basic" && "$INSTALL_LEVEL" != "homepage" ]]; then
     CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
 - Grafana: https://$GRAFANA_SUBDOMAIN.$DOMAIN_NAME"
 fi
