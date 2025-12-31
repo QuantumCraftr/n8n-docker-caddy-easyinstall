@@ -56,6 +56,7 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=${GENERIC_TIMEZONE}
+      - HOMEPAGE_ALLOWED_HOSTS=dashboard.${DOMAIN_NAME}
       # Optional: Uncomment to enable authentication
       # - HOMEPAGE_VAR_USERNAME=${HOMEPAGE_USERNAME:-admin}
       # - HOMEPAGE_VAR_PASSWORD=${HOMEPAGE_PASSWORD}
