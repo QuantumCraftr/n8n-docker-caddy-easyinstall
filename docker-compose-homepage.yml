@@ -9,6 +9,7 @@ services:
       - caddy_data:/data
       - ${DATA_FOLDER}/caddy_config:/config
       - ${DATA_FOLDER}/caddy_config/Caddyfile:/etc/caddy/Caddyfile
+      - ${DATA_FOLDER}/caddy_logs:/var/log/caddy
 
   n8n:
     image: docker.n8n.io/n8nio/n8n
