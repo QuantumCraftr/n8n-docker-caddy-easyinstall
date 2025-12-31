@@ -18,6 +18,7 @@ data/
 
 # Backups
 backups/
+backup-*/
 *.tar.gz
 *.zip
 
@@ -28,4 +29,5 @@ Thumbs.db
 *.swo
 *~
 .vscode/
+.claude/
 caddy_config/Caddyfile

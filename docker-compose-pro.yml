@@ -109,25 +109,23 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=false"  # Do not auto-update Portainer
 
-  watchtower:
-    image: containrrr/watchtower:latest
+  diun:
+    image: crazymax/diun:latest
     restart: unless-stopped
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - diun_data:/data
     environment:
-      - WATCHTOWER_SCHEDULE=0 0 4 * * 0  # Sunday 4 AM
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_INCLUDE_STOPPED=true
-      - WATCHTOWER_LABEL_ENABLE=true  # Use labels to control updates
-      - WATCHTOWER_NOTIFICATIONS=${WATCHTOWER_NOTIFICATIONS:-}
-      - WATCHTOWER_NOTIFICATION_EMAIL_FROM=${SSL_EMAIL:-}
-      - WATCHTOWER_NOTIFICATION_EMAIL_TO=${SSL_EMAIL:-}
-      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER=${SMTP_SERVER:-}
-      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT=${SMTP_PORT:-587}
-      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER=${SMTP_USER:-}
-      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=${SMTP_PASSWORD:-}
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"  # Do not self-update
+      - TZ=${GENERIC_TIMEZONE}
+      - LOG_LEVEL=info
+      - LOG_JSON=false
+      - DIUN_WATCH_WORKERS=20
+      - DIUN_WATCH_SCHEDULE=0 */6 * * *  # Check every 6 hours
+      - DIUN_PROVIDERS_DOCKER=true
+      - DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT=true
+      # Optional: Uncomment to enable webhook notifications (e.g., to n8n)
+      # - DIUN_NOTIF_WEBHOOK_ENDPOINT=https://automation.${DOMAIN_NAME}/webhook/diun
+      # - DIUN_NOTIF_WEBHOOK_METHOD=POST
 
   uptime-kuma:
     image: louislam/uptime-kuma:latest
@@ -168,4 +166,6 @@ volumes:
   portainer_data:
     external: true
   uptime_data:
+    external: true
+  diun_data:
     external: true
