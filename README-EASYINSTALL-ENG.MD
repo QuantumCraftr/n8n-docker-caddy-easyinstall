@@ -64,6 +64,12 @@ The script will guide you through the configuration!
 - Flowise (AI chatbots)
 - Caddy (reverse proxy + SSL)
 
+### 🏠 Homepage Installation ⭐ **Recommended**
+**Simple and modern**
+- Everything from the basic installation
+- Homepage (modern dashboard)
+- Diun (update notifications)
+
 ### 📊 Installation with Monitoring
 **For advanced users**
 - Everything from the basic installation
@@ -74,7 +80,7 @@ The script will guide you through the configuration!
 **For production**
 - Everything from the monitoring installation
 - Portainer (Docker interface)
-- Watchtower (automatic updates)
+- Diun (update notifications)
 - Uptime Kuma (monitoring)
 
 ## 🌐 DNS Configuration
