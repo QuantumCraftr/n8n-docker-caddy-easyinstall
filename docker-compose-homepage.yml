@@ -55,7 +55,7 @@ services:
       - ${DATA_FOLDER}/homepage:/app/config
     environment:
       - PUID=1000
-      - PGID=1000
+      - PGID=118
       - TZ=${GENERIC_TIMEZONE}
       - HOMEPAGE_ALLOWED_HOSTS=dashboard.${DOMAIN_NAME}
       # Authentication enabled for security
