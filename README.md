@@ -2,6 +2,25 @@
 
 > **Easy n8n deployment with Docker and Caddy - Automatic SSL and 5-minute setup!**
 
+## ⚠️ **SECURITY DISCLAIMER - READ CAREFULLY**
+
+> **🛡️ This project is intended for testing, learning, and development purposes.**
+>
+> **YOU are solely responsible for the security of your deployment.** This project provides a starting point, but it is **YOUR responsibility** to:
+> - ✅ **Audit all configurations** before deploying to production
+> - ✅ **Review and customize security settings** for your specific needs
+> - ✅ **Keep all services updated** and monitor security advisories
+> - ✅ **Implement additional security measures** (firewall rules, fail2ban, intrusion detection, etc.)
+> - ✅ **Regularly backup your data** and test restore procedures
+> - ✅ **Use strong, unique passwords** and rotate them regularly
+> - ✅ **Conduct security audits** of your infrastructure
+>
+> **⚠️ The maintainers of this project are NOT responsible for any security breaches, data loss, or damages resulting from the use of this software.** By using this project, you acknowledge that you understand the risks and accept full responsibility for securing your deployment.
+>
+> **Use at your own risk. Always follow security best practices.**
+
+---
+
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
 [![n8n](https://img.shields.io/badge/n8n-Latest-orange)](https://n8n.io)
 [![SSL](https://img.shields.io/badge/SSL-Auto--Generated-green)](https://letsencrypt.org)
@@ -334,4 +353,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 **⭐ If this project helps you, please give it a star!**
 
-Made with ❤️ for the n8n community | Enhanced with 📊 professional monitoring
+Made with ❤️ for the n8n community | 
