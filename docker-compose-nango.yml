@@ -1,0 +1,76 @@
+services:
+  nango-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${NANGO_DB_PASSWORD}
+      POSTGRES_USER: nango
+      POSTGRES_DB: nango
+    volumes:
+      - nango_db_data:/var/lib/postgresql/data
+    networks:
+      - nango_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nango"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nango-redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    volumes:
+      - nango_redis_data:/data
+    networks:
+      - nango_internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nango-server:
+    image: nangohq/nango-server:hosted
+    restart: always
+    platform: linux/amd64
+    environment:
+      - NANGO_ENCRYPTION_KEY=${NANGO_ENCRYPTION_KEY}
+      - NANGO_DB_HOST=nango-db
+      - NANGO_DB_USER=nango
+      - NANGO_DB_PASSWORD=${NANGO_DB_PASSWORD}
+      - NANGO_DB_NAME=nango
+      - NANGO_DB_PORT=5432
+      - NANGO_DB_SSL=false
+      - RECORDS_DATABASE_URL=postgresql://nango:${NANGO_DB_PASSWORD}@nango-db:5432/nango
+      - NANGO_SERVER_URL=https://${NANGO_SUBDOMAIN:-nango}.${DOMAIN_NAME}
+      - NANGO_PUBLIC_SERVER_URL=https://${NANGO_SUBDOMAIN:-nango}.${DOMAIN_NAME}
+      - SERVER_PORT=3003
+      - FLAG_AUTH_ENABLED=true
+      - NANGO_DASHBOARD_USERNAME=${NANGO_DASHBOARD_USERNAME:-admin}
+      - NANGO_DASHBOARD_PASSWORD=${NANGO_DASHBOARD_PASSWORD}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - NANGO_LOGS_ENABLED=false
+      - FLAG_SERVE_CONNECT_UI=true
+      - TELEMETRY=false
+    depends_on:
+      nango-db:
+        condition: service_healthy
+      nango-redis:
+        condition: service_healthy
+    networks:
+      - shared_network
+      - nango_internal
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+volumes:
+  nango_db_data:
+    external: true
+  nango_redis_data:
+    external: true
+
+networks:
+  shared_network:
+    external: true
+  nango_internal:
+    driver: bridge

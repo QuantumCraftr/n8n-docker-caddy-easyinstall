@@ -196,6 +196,18 @@ echo "Examples: Europe/Paris, America/New_York, Asia/Tokyo"
 read -p "Timezone [Europe/Paris]: " TIMEZONE
 TIMEZONE=${TIMEZONE:-Europe/Paris}
 
+# Nango (OAuth Management)
+echo ""
+echo -e "${YELLOW}🔗 Nango OAuth Management (optional)${NC}"
+echo "Nango simplifies OAuth connections for your clients (LinkedIn, Meta, Google, etc.)"
+read -p "Install Nango? [y/N]: " INSTALL_NANGO
+INSTALL_NANGO=${INSTALL_NANGO:-N}
+
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    read -p "Subdomain for Nango [nango]: " NANGO_SUBDOMAIN
+    NANGO_SUBDOMAIN=${NANGO_SUBDOMAIN:-nango}
+fi
+
 # Password generation
 echo ""
 echo -e "${YELLOW}🔐 Generating secure passwords...${NC}"
@@ -203,6 +215,13 @@ echo -e "${YELLOW}🔐 Generating secure passwords...${NC}"
 N8N_PASSWORD=$(generate_password)
 FLOWISE_PASSWORD=$(generate_password)
 GRAFANA_PASSWORD=$(generate_password)
+HOMEPAGE_PASSWORD=$(generate_password)
+
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    NANGO_DB_PASSWORD=$(generate_password)
+    NANGO_DASHBOARD_PASSWORD=$(generate_password)
+    NANGO_ENCRYPTION_KEY=$(openssl rand -base64 32)
+fi
 
 echo -e "${GREEN}✅ Passwords generated${NC}"
 
@@ -224,6 +243,10 @@ fi
 if [[ "$INSTALL_LEVEL" == "pro" ]]; then
     echo -e "🐳 Portainer: ${GREEN}https://$PORTAINER_SUBDOMAIN.$DOMAIN_NAME${NC}"
     echo -e "📈 Uptime Kuma: ${GREEN}https://$UPTIME_SUBDOMAIN.$DOMAIN_NAME${NC}"
+fi
+
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    echo -e "🔗 Nango: ${GREEN}https://$NANGO_SUBDOMAIN.$DOMAIN_NAME${NC}"
 fi
 
 echo -e "📧 SSL Email: ${GREEN}$SSL_EMAIL${NC}"
@@ -264,10 +287,26 @@ FLOWISE_PASSWORD=$FLOWISE_PASSWORD
 # 📊 Grafana (if installed)
 GRAFANA_PASSWORD=$GRAFANA_PASSWORD
 
+# 🏠 Homepage (if installed)
+HOMEPAGE_USERNAME=admin
+HOMEPAGE_PASSWORD=$HOMEPAGE_PASSWORD
+
 # 🔄 Watchtower notifications (optional)
 # GMAIL_USER=your-email@gmail.com
 # GMAIL_APP_PASSWORD=your-app-password
 EOF
+
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    cat >> "$PROJECT_ROOT/.env" << EOF
+
+# 🔗 Nango (OAuth Management)
+NANGO_SUBDOMAIN=$NANGO_SUBDOMAIN
+NANGO_ENCRYPTION_KEY=$NANGO_ENCRYPTION_KEY
+NANGO_DB_PASSWORD=$NANGO_DB_PASSWORD
+NANGO_DASHBOARD_USERNAME=admin
+NANGO_DASHBOARD_PASSWORD=$NANGO_DASHBOARD_PASSWORD
+EOF
+fi
 
 # Generate Caddyfile
 cat > "$PROJECT_ROOT/caddy_config/Caddyfile" << EOF
@@ -323,6 +362,17 @@ $UPTIME_SUBDOMAIN.$DOMAIN_NAME {
 EOF
 fi
 
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    cat >> "$PROJECT_ROOT/caddy_config/Caddyfile" << EOF
+
+$NANGO_SUBDOMAIN.$DOMAIN_NAME {
+    reverse_proxy nango-server:3003 {
+        flush_interval -1
+    }
+}
+EOF
+fi
+
 # Set the appropriate Docker Compose file based on level
 case $INSTALL_LEVEL in
     "basic")
@@ -352,6 +402,11 @@ if ! docker info &> /dev/null; then
     exit 1
 fi
 
+# Create shared network (required by all stacks for Nango integration)
+echo -e "${BLUE}🔗 Creating shared Docker network...${NC}"
+docker network create shared_network 2>/dev/null || true
+echo -e "${GREEN}✅ Shared network ready${NC}"
+
 docker volume create caddy_data 2>/dev/null || true
 docker volume create n8n_data 2>/dev/null || true
 docker volume create flowise_data 2>/dev/null || true
@@ -370,6 +425,11 @@ if [[ "$INSTALL_LEVEL" == "pro" ]]; then
     docker volume create portainer_data 2>/dev/null || true
     docker volume create uptime_data 2>/dev/null || true
     docker volume create diun_data 2>/dev/null || true
+fi
+
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    docker volume create nango_db_data 2>/dev/null || true
+    docker volume create nango_redis_data 2>/dev/null || true
 fi
 
 echo -e "${GREEN}✅ Volumes created${NC}"
@@ -416,6 +476,11 @@ if [[ "$INSTALL_LEVEL" == "pro" ]]; then
 - Uptime Kuma: https://$UPTIME_SUBDOMAIN.$DOMAIN_NAME"
 fi
 
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
+- Nango: https://$NANGO_SUBDOMAIN.$DOMAIN_NAME"
+fi
+
 # Add login credentials
 CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
 
@@ -429,21 +494,43 @@ if [[ "$INSTALL_LEVEL" != "basic" ]]; then
 - Grafana: admin / $GRAFANA_PASSWORD"
 fi
 
+if [[ "$INSTALL_LEVEL" == "homepage" ]]; then
+    CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
+- Homepage: admin / $HOMEPAGE_PASSWORD"
+fi
+
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
+- Nango dashboard: admin / $NANGO_DASHBOARD_PASSWORD
+- Nango DB password: $NANGO_DB_PASSWORD
+- Nango encryption key: $NANGO_ENCRYPTION_KEY"
+fi
+
 # Add final instructions
 CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
 
-⚠️  IMPORTANT: 
+⚠️  IMPORTANT:
 1. Save this file in a secure location
 2. Delete this file from the server after backup
 3. Passwords are also stored in the .env file
+4. NEVER change NANGO_ENCRYPTION_KEY after first startup - all stored tokens will become unreadable
 
 🚀 Useful commands:
 - Start: docker compose -f $COMPOSE_FILE up -d
 - Stop: docker compose -f $COMPOSE_FILE down
 - Logs: docker compose -f $COMPOSE_FILE logs -f
 - Restart: docker compose -f $COMPOSE_FILE restart
-- Update: ./scripts/update.sh
+- Update: ./scripts/update.sh"
+
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
+- Start Nango: docker compose -f docker-compose-nango.yml up -d
+- Stop Nango: docker compose -f docker-compose-nango.yml down
 "
+else
+    CREDENTIALS_CONTENT="$CREDENTIALS_CONTENT
+"
+fi
 
 # Write the complete content in one operation with error handling
 if ! echo "$CREDENTIALS_CONTENT" > "$PROJECT_ROOT/credentials.txt" 2>/dev/null; then
@@ -499,11 +586,17 @@ echo ""
 echo -e "${BLUE}🚀 Next steps:${NC}"
 echo "1. Verify that your DNS points to this server"
 echo -e "2. Go back to root directory: ${GREEN}cd ..${NC}"
-echo -e "3. Start the installation: ${GREEN}docker compose -f $COMPOSE_FILE up -d${NC}"
-echo "4. Wait 2-3 minutes for SSL certificates to be generated"
-echo "5. Access your services via the URLs provided"
-if [[ "$INSTALL_LEVEL" != "basic" && ! "$SETUP_GRAFANA" =~ ^[Yy]$ ]]; then
-    echo -e "6. ${YELLOW}Optional: Enhanced monitoring: cd scripts && ./grafana_setup.sh${NC}"
+echo -e "3. Start the main stack: ${GREEN}docker compose -f $COMPOSE_FILE up -d${NC}"
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    echo -e "4. Start Nango: ${GREEN}docker compose -f docker-compose-nango.yml up -d${NC}"
+    echo "5. Wait 2-3 minutes for SSL certificates to be generated"
+    echo "6. Access your services via the URLs provided"
+else
+    echo "4. Wait 2-3 minutes for SSL certificates to be generated"
+    echo "5. Access your services via the URLs provided"
+fi
+if [[ "$INSTALL_LEVEL" != "basic" && "$INSTALL_LEVEL" != "homepage" && ! "$SETUP_GRAFANA" =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}   Optional: Enhanced monitoring: cd scripts && ./grafana_setup.sh${NC}"
     echo -e "   ${RED}⚠️  Note: You must run this BEFORE Docker startup!${NC}"
 fi
 echo ""
@@ -511,6 +604,10 @@ echo -e "${YELLOW}💡 To manage your installation:${NC}"
 echo -e "   - View logs: ${GREEN}docker compose -f $COMPOSE_FILE logs -f${NC}"
 echo -e "   - Stop services: ${GREEN}docker compose -f $COMPOSE_FILE down${NC}"
 echo -e "   - Restart: ${GREEN}docker compose -f $COMPOSE_FILE restart${NC}"
+if [[ "$INSTALL_NANGO" =~ ^[Yy]$ ]]; then
+    echo -e "   - Nango logs: ${GREEN}docker compose -f docker-compose-nango.yml logs -f${NC}"
+    echo -e "   - Stop Nango: ${GREEN}docker compose -f docker-compose-nango.yml down${NC}"
+fi
 echo ""
 echo -e "${GREEN}✨ Installation configured successfully!${NC}"
 

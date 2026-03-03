@@ -93,6 +93,17 @@ find_compose_file() {
     return 1
 }
 
+# Check if Nango is running
+nango_is_running() {
+    cd $PROJECT_ROOT
+    if [[ -f "docker-compose-nango.yml" ]]; then
+        if $DOCKER_COMPOSE_CMD -f "docker-compose-nango.yml" ps --services --filter "status=running" 2>/dev/null | grep -q .; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
 echo -e "${BLUE}🔄 n8n-docker-caddy Update${NC}"
 echo ""
 
@@ -153,15 +164,23 @@ update_n8n_only() {
 # Update all services
 update_all() {
     echo -e "${BLUE}📦 Complete update...${NC}"
-    
+
     # Download new images
     echo -e "${YELLOW}⬇️ Downloading new images...${NC}"
     $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" pull
-    
+
     # Restart services
     echo -e "${YELLOW}🔄 Restarting services...${NC}"
     $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" up -d
-    
+
+    # Update Nango if running
+    if nango_is_running; then
+        echo -e "${BLUE}🔗 Updating Nango...${NC}"
+        $DOCKER_COMPOSE_CMD -f "$PROJECT_ROOT/docker-compose-nango.yml" pull
+        $DOCKER_COMPOSE_CMD -f "$PROJECT_ROOT/docker-compose-nango.yml" up -d
+        echo -e "${GREEN}✅ Nango updated!${NC}"
+    fi
+
     echo -e "${GREEN}✅ All services updated!${NC}"
 }
 
@@ -169,25 +188,34 @@ update_all() {
 update_recreate() {
     echo -e "${BLUE}🔧 Update with recreation...${NC}"
     echo -e "${RED}⚠️ This operation will recreate all containers${NC}"
-    
+
     read -p "Continue? [y/N]: " CONFIRM
     if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
         echo -e "${YELLOW}⏹️ Operation cancelled${NC}"
         exit 0
     fi
-    
+
     # Download new images
     echo -e "${YELLOW}⬇️ Downloading new images...${NC}"
     $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" pull
-    
+
     # Stop services
     echo -e "${YELLOW}⏹️ Stopping services...${NC}"
     $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" down
-    
+
     # Restart with recreation
     echo -e "${YELLOW}🚀 Recreating containers...${NC}"
     $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" up -d --force-recreate
-    
+
+    # Update Nango if running
+    if nango_is_running; then
+        echo -e "${BLUE}🔗 Recreating Nango...${NC}"
+        $DOCKER_COMPOSE_CMD -f "$PROJECT_ROOT/docker-compose-nango.yml" pull
+        $DOCKER_COMPOSE_CMD -f "$PROJECT_ROOT/docker-compose-nango.yml" down
+        $DOCKER_COMPOSE_CMD -f "$PROJECT_ROOT/docker-compose-nango.yml" up -d --force-recreate
+        echo -e "${GREEN}✅ Nango recreated!${NC}"
+    fi
+
     echo -e "${GREEN}✅ Complete update finished!${NC}"
 }
 

@@ -91,8 +91,8 @@ fi
 # Function to find the active docker-compose file
 find_compose_file() {
     cd "$PROJECT_ROOT"
-    
-    for file in "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
+
+    for file in "docker-compose-homepage.yml" "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
         if [[ -f "$file" ]]; then
             # Test if this compose file has running containers
             if $DOCKER_COMPOSE_CMD -f "$file" ps --services --filter "status=running" 2>/dev/null | grep -q .; then
@@ -101,15 +101,15 @@ find_compose_file() {
             fi
         fi
     done
-    
+
     # Fallback: check which files exist
-    for file in "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
+    for file in "docker-compose-homepage.yml" "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose.yml"; do
         if [[ -f "$file" ]]; then
             echo "$file"
             return 0
         fi
     done
-    
+
     return 1
 }
 
@@ -204,7 +204,7 @@ cd "$PROJECT_ROOT"
 
 # Backup Docker volumes
 backup_volume "n8n_data"
-backup_volume "flowise_data" 
+backup_volume "flowise_data"
 backup_volume "caddy_data"
 
 # Backup optional volumes if they exist
@@ -212,6 +212,12 @@ backup_volume "grafana_data"
 backup_volume "prometheus_data"
 backup_volume "portainer_data"
 backup_volume "uptime_data"
+backup_volume "homepage_data"
+backup_volume "diun_data"
+
+# Backup Nango volumes if they exist
+backup_volume "nango_db_data"
+backup_volume "nango_redis_data"
 
 # Create backup information file
 cat > "$BACKUP_DIR/${BACKUP_NAME}_info.txt" << EOF

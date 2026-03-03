@@ -77,7 +77,7 @@ echo "================================================"
 echo -e "${YELLOW}⏹️  FORCE stopping all n8n containers...${NC}"
 
 # List all containers with n8n in the name and stop them
-docker ps -a --format "{{.Names}}" | grep -i "n8n\|caddy\|grafana\|prometheus\|flowise\|portainer\|uptime\|watchtower\|node-exporter\|cadvisor" | while read container; do
+docker ps -a --format "{{.Names}}" | grep -i "n8n\|caddy\|grafana\|prometheus\|flowise\|portainer\|uptime\|watchtower\|node-exporter\|cadvisor\|nango" | while read container; do
     echo "🛑 Force stopping: $container"
     docker stop "$container" 2>/dev/null || true
     docker rm "$container" 2>/dev/null || true
@@ -85,7 +85,7 @@ done
 
 # 2. Alternative method: stop by image
 echo -e "${YELLOW}🔍 Stopping by Docker image...${NC}"
-for image in "n8n" "caddy" "grafana" "prometheus" "flowise" "portainer" "uptime-kuma" "watchtower" "node-exporter" "cadvisor"; do
+for image in "n8n" "caddy" "grafana" "prometheus" "flowise" "portainer" "uptime-kuma" "watchtower" "node-exporter" "cadvisor" "nango-server" "nango"; do
     containers=$(docker ps -a -q --filter ancestor="*$image*" 2>/dev/null || true)
     if [ ! -z "$containers" ]; then
         echo "🛑 Stopping containers $image: $containers"
@@ -96,7 +96,7 @@ done
 
 # 3. Attempt to stop with docker-compose in different directories
 echo -e "${YELLOW}🔍 Searching for active docker-compose...${NC}"
-for compose_file in "docker-compose.yml" "docker-compose-homepage.yml" "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml"; do
+for compose_file in "docker-compose.yml" "docker-compose-homepage.yml" "docker-compose-pro.yml" "docker-compose-monitoring.yml" "docker-compose-basic.yml" "docker-compose-nango.yml"; do
     if [ -f "$PROJECT_ROOT/$compose_file" ]; then
         echo "📁 Attempting to stop: $compose_file"
         docker compose -f "$PROJECT_ROOT/$compose_file" down --remove-orphans 2>/dev/null || true
@@ -110,7 +110,7 @@ read -p "Continue? [y/N]: " CONFIRM_NUCLEAR
 if [[ "$CONFIRM_NUCLEAR" =~ ^[Yy]$ ]]; then
     
     # Delete all volumes with suspicious names
-    docker volume ls -q | grep -E "(caddy|n8n|flowise|grafana|prometheus|portainer|uptime|homepage|diun)" | while read volume; do
+    docker volume ls -q | grep -E "(caddy|n8n|flowise|grafana|prometheus|portainer|uptime|homepage|diun|nango)" | while read volume; do
         echo "💥 Deleting volume: $volume"
         docker volume rm "$volume" --force 2>/dev/null || true
     done
@@ -149,9 +149,9 @@ echo ""
 echo -e "${BLUE}🔍 Final verification:${NC}"
 echo ""
 echo -e "${YELLOW}Remaining containers:${NC}"
-remaining_containers=$(docker ps -a --format "{{.Names}}" | grep -iE "(n8n|caddy|grafana|prometheus|flowise|portainer|uptime|watchtower|node-exporter|cadvisor)" || echo "None")
+remaining_containers=$(docker ps -a --format "{{.Names}}" | grep -iE "(n8n|caddy|grafana|prometheus|flowise|portainer|uptime|watchtower|node-exporter|cadvisor|nango)" || echo "None")
 if [ "$remaining_containers" = "None" ]; then
-    echo -e "${GREEN}✅ No n8n containers remaining${NC}"
+    echo -e "${GREEN}✅ No containers remaining${NC}"
 else
     echo -e "${RED}❌ Remaining containers:${NC}"
     echo "$remaining_containers"
@@ -159,9 +159,9 @@ fi
 
 echo ""
 echo -e "${YELLOW}Remaining volumes:${NC}"
-remaining_volumes=$(docker volume ls -q | grep -iE "(caddy|n8n|flowise|grafana|prometheus|portainer|uptime)" || echo "None")
+remaining_volumes=$(docker volume ls -q | grep -iE "(caddy|n8n|flowise|grafana|prometheus|portainer|uptime|nango)" || echo "None")
 if [ "$remaining_volumes" = "None" ]; then
-    echo -e "${GREEN}✅ No n8n volumes remaining${NC}"
+    echo -e "${GREEN}✅ No volumes remaining${NC}"
 else
     echo -e "${RED}❌ Remaining volumes:${NC}"
     echo "$remaining_volumes"

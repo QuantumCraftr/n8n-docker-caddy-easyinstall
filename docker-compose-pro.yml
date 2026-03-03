@@ -9,6 +9,9 @@ services:
       - caddy_data:/data
       - ${DATA_FOLDER}/caddy_config:/config
       - ${DATA_FOLDER}/caddy_config/Caddyfile:/etc/caddy/Caddyfile
+    networks:
+      - default
+      - shared_network
 
   n8n:
     image: docker.n8n.io/n8nio/n8n
@@ -21,6 +24,7 @@ services:
       - N8N_PROTOCOL=https
       - NODE_ENV=production
       - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+      - N8N_EDITOR_BASE_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
       # Secure configuration
       - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-true}
@@ -35,6 +39,9 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
       - ${DATA_FOLDER}/local_files:/files
+    networks:
+      - default
+      - shared_network
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
@@ -168,4 +175,8 @@ volumes:
   uptime_data:
     external: true
   diun_data:
+    external: true
+
+networks:
+  shared_network:
     external: true
