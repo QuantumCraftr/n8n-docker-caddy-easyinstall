@@ -44,6 +44,8 @@ services:
       - RECORDS_DATABASE_URL=postgresql://nango:${NANGO_DB_PASSWORD}@nango-db:5432/nango
       - NANGO_SERVER_URL=https://${NANGO_SUBDOMAIN:-nango}.${DOMAIN_NAME}
       - NANGO_PUBLIC_SERVER_URL=https://${NANGO_SUBDOMAIN:-nango}.${DOMAIN_NAME}
+      - NANGO_CALLBACK_URL=https://${NANGO_SUBDOMAIN:-nango}.${DOMAIN_NAME}/oauth/callback
+      - NANGO_SERVER_ROOT_URL=https://${NANGO_SUBDOMAIN:-nango}.${DOMAIN_NAME}
       - SERVER_PORT=3003
       - FLAG_AUTH_ENABLED=true
       - NANGO_DASHBOARD_USERNAME=${NANGO_DASHBOARD_USERNAME:-admin}
@@ -53,6 +55,8 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - NANGO_LOGS_ENABLED=false
       - FLAG_SERVE_CONNECT_UI=true
+      - NANGO_PUBLIC_CONNECT_URL=https://${NANGO_SUBDOMAIN:-nango}.${DOMAIN_NAME}
+      - NANGO_REDIS_URL=redis://nango-redis:6379
       - TELEMETRY=false
     depends_on:
       nango-db:

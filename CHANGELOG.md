@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Nango OAuth flow (LinkedIn & all providers)** - Complete fix for OAuth connections:
+  - Added `NANGO_PUBLIC_CONNECT_URL` env var (Connect UI was falling back to `localhost:3009`)
+  - Added `NANGO_REDIS_URL` to connect nango-server to Redis (enables WebSocket pub/sub)
+  - Added `NANGO_CALLBACK_URL` and `NANGO_SERVER_ROOT_URL` explicit env vars
+  - Rewrote Caddyfile Nango block with proper multi-port routing:
+    - WebSocket upgrade requests -> port 3003 (API server)
+    - Connect UI iframe (`?apiURL=*`) -> port 3009
+    - Connect UI preview (`?embedded=true`) -> port 3009
+    - `/assets/*` -> port 3009 with fallback to 3003
+    - All other requests (dashboard, API, OAuth callback) -> port 3003
+  - Root cause: Nango runs Dashboard+API on port 3003 and Connect UI on port 3009 internally, but only 3003 was proxied
+
 ### Added
 - **Homepage Installation Option** ⭐ - New recommended installation level featuring:
   - Modern, lightweight dashboard for service management

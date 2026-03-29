@@ -38,8 +38,54 @@ uptime.yourdomain.com {
 }
 
 # Nango OAuth management (optional - requires docker-compose-nango.yml)
+# Nango runs two services internally:
+#   - Dashboard + API + WebSocket on port 3003
+#   - Connect UI (OAuth iframe) on port 3009
+# Caddy routes: WebSocket→3003, Connect UI (apiURL param)→3009,
+# assets→3009 with fallback→3003, everything else→3003.
 nango.yourdomain.com {
-    reverse_proxy nango-server:3003 {
-        flush_interval -1
+    # WebSocket upgrade: must go to API server (3003)
+    @websocket {
+        header Connection *upgrade*
+        header Upgrade websocket
+    }
+    handle @websocket {
+        reverse_proxy nango-server:3003
+    }
+
+    # Connect UI: any request with apiURL param (iframe from dashboard or shared link)
+    @connectui {
+        query apiURL=*
+    }
+    handle @connectui {
+        reverse_proxy nango-server:3009
+    }
+
+    # Connect UI: embedded param (preview mode)
+    @connectui_embedded {
+        query embedded=true
+    }
+    handle @connectui_embedded {
+        reverse_proxy nango-server:3009
+    }
+
+    # Assets: try Connect UI (3009) first, fallback to dashboard (3003)
+    handle /assets/* {
+        reverse_proxy nango-server:3009 {
+            @not_found status 404
+            handle_response @not_found {
+                reverse_proxy nango-server:3003
+            }
+        }
+    }
+
+    # Everything else: dashboard + API + OAuth callback
+    handle {
+        reverse_proxy nango-server:3003 {
+            flush_interval -1
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-Proto {scheme}
+        }
     }
 }
